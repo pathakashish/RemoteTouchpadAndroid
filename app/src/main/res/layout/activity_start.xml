@@ -22,14 +22,14 @@
                 android:layout_gravity="center"
                 android:textColor="@color/white"
                 style="@style/TextAppearance.AppCompat.Large"
-                android:text="Kotlin Sample"
+                android:text="WebRTC Video/Screen Share"
                 android:elevation="8dp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
             <EditText
                 android:padding="16dp"
                 android:layout_margin="16dp"
-                android:background="@drawable/curve_background"
+                android:background="@drawable/rounded"
                 android:hint="Enter Meeting ID"
                 android:id="@+id/meeting_id"
                 android:layout_width="match_parent"

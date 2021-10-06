@@ -1,8 +1,6 @@
 package com.developerspace.webrtcsample
 
 import android.Manifest
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
@@ -21,15 +19,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.slf4j.helpers.Util
 import org.webrtc.*
 import java.util.*
-import android.content.ComponentName
 
 import android.os.IBinder
 
-import android.content.ServiceConnection
-
 import android.R.attr.name
-
-
+import android.content.*
+import android.view.View
 
 
 @ExperimentalCoroutinesApi
@@ -114,11 +109,7 @@ class RTCActivity : AppCompatActivity() {
             rtcClient.enableAudio(isMute)
         }
         end_call_button.setOnClickListener {
-            rtcClient.endCall(meetingID)
-            remote_view.isGone = false
-            Constants.isCallEnded = true
-            finish()
-            startActivity(Intent(this@RTCActivity, MainActivity::class.java))
+            endCall()
         }
 
         share_screen_button.setOnClickListener {
@@ -135,6 +126,30 @@ class RTCActivity : AppCompatActivity() {
         } else {
             onCameraAndAudioPermissionGranted()
         }
+    }
+
+    override fun onBackPressed() {
+        AlertDialog.Builder(this)
+            .setTitle("Are you sure to close the screen?")
+            .setMessage("Your ongoing call will be disconnected!")
+            .setPositiveButton( "Yes", object : DialogInterface.OnClickListener{
+                override fun onClick(p0: DialogInterface?, p1: Int) {
+                    endCall()
+                }
+            })
+            .setNegativeButton("No", object : DialogInterface.OnClickListener{
+                override fun onClick(p0: DialogInterface?, p1: Int) {
+                }
+            })
+            .show()
+    }
+
+    private fun endCall() {
+        rtcClient.endCall(meetingID)
+        remote_view.isGone = false
+        Constants.isCallEnded = true
+        finish()
+        startActivity(Intent(this@RTCActivity, MainActivity::class.java))
     }
 
     private fun startScreenCapture() {
@@ -227,12 +242,12 @@ class RTCActivity : AppCompatActivity() {
         }
 
         override fun onCallEnded() {
-            if (!Constants.isCallEnded) {
+           // if (!Constants.isCallEnded) {
                 Constants.isCallEnded = true
                 rtcClient.endCall(meetingID)
                 finish()
                 startActivity(Intent(this@RTCActivity, MainActivity::class.java))
-            }
+          //  }
         }
     }
 
@@ -287,12 +302,17 @@ class RTCActivity : AppCompatActivity() {
             })
     }
 
+
+
     private fun onCameraPermissionDenied() {
         Toast.makeText(this, "Camera and Audio Permission Denied", Toast.LENGTH_LONG).show()
     }
 
     override fun onDestroy() {
         signallingClient.destroy()
+        val intent = Intent(this, BackgroundService::class.java)
+        intent.action = BackgroundService.ACTION_STOP_FOREGROUND_SERVICE
+        startService(intent)
         super.onDestroy()
     }
 }

@@ -27,6 +27,7 @@ class MainActivity : AppCompatActivity() {
                             if (it["type"]=="OFFER" || it["type"]=="ANSWER" || it["type"]=="END_CALL") {
                                 meeting_id.error = "Please enter new meeting ID"
                             } else {
+                                finish()
                                 val intent = Intent(this@MainActivity, RTCActivity::class.java)
                                 intent.putExtra("meetingID",meeting_id.text.toString())
                                 intent.putExtra("isJoin",false)
@@ -42,6 +43,7 @@ class MainActivity : AppCompatActivity() {
             if (meeting_id.text.toString().trim().isNullOrEmpty())
                 meeting_id.error = "Please enter meeting id"
             else {
+                finish()
                 val intent = Intent(this@MainActivity, RTCActivity::class.java)
                 intent.putExtra("meetingID",meeting_id.text.toString())
                 intent.putExtra("isJoin",true)

@@ -31,6 +31,7 @@ class RTCClient(
 
     private var localAudioTrack : AudioTrack? = null
     private var localVideoTrack : VideoTrack? = null
+    private lateinit var localVideoStream: MediaStream
     val TAG = "RTCClient"
 
     var remoteSessionDescription : SessionDescription? = null
@@ -101,15 +102,15 @@ class RTCClient(
         localAudioTrack = peerConnectionFactory.createAudioTrack(LOCAL_TRACK_ID + "_audio", audioSource);
         localVideoTrack = peerConnectionFactory.createVideoTrack(LOCAL_TRACK_ID, localVideoSource)
         localVideoTrack?.addSink(localVideoOutput)
-        val localStream = peerConnectionFactory.createLocalMediaStream(LOCAL_STREAM_ID)
-        localStream.addTrack(localVideoTrack)
-        localStream.addTrack(localAudioTrack)
-        peerConnection?.addStream(localStream)
+        localVideoStream = peerConnectionFactory.createLocalMediaStream(LOCAL_STREAM_ID)
+        localVideoStream.addTrack(localVideoTrack)
+        localVideoStream.addTrack(localAudioTrack)
+        peerConnection?.addStream(localVideoStream)
     }
 
     fun startScreenSharing(data: Intent, localVideoOutput: SurfaceViewRenderer, capturer: VideoCapturer) {
         Log.d("Rtc", "startScreenSharing()")
-        stopCameraShare()
+        stopCameraShare(localVideoOutput)
         val videoCap = capturer
         val surfaceTextureHelper = SurfaceTextureHelper.create(Thread.currentThread().name, rootEglBase.eglBaseContext)
         videoCap.initialize(surfaceTextureHelper, localVideoOutput.context, localVideoForSharingSource.capturerObserver)
@@ -283,11 +284,13 @@ class RTCClient(
             localVideoTrack?.setEnabled(videoEnabled)
     }
 
-    private fun stopCameraShare(){
-        val localStream = peerConnectionFactory.createLocalMediaStream(LOCAL_STREAM_ID)
-        localStream.removeTrack(localVideoTrack)
+    private fun stopCameraShare(view: SurfaceViewRenderer){
         videoCapturer.stopCapture()
+        localVideoTrack?.removeSink(view)
+        localVideoStream.removeTrack(localVideoTrack)
+        localVideoStream.removeTrack(localAudioTrack)
         localVideoTrack?.dispose()
+        localAudioTrack?.dispose()
     }
 
     fun enableAudio(audioEnabled: Boolean) {
