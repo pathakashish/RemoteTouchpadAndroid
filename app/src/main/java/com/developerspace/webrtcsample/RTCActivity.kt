@@ -1,8 +1,12 @@
 package com.developerspace.webrtcsample
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -14,8 +18,19 @@ import androidx.core.view.isGone
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.activity_start.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import org.slf4j.helpers.Util
 import org.webrtc.*
 import java.util.*
+import android.content.ComponentName
+
+import android.os.IBinder
+
+import android.content.ServiceConnection
+
+import android.R.attr.name
+
+
+
 
 @ExperimentalCoroutinesApi
 class RTCActivity : AppCompatActivity() {
@@ -38,6 +53,8 @@ class RTCActivity : AppCompatActivity() {
     private var isJoin = false
 
     private var isMute = false
+
+    private var isScreenShared = false
 
     private var isVideoPaused = false
 
@@ -103,6 +120,10 @@ class RTCActivity : AppCompatActivity() {
             finish()
             startActivity(Intent(this@RTCActivity, MainActivity::class.java))
         }
+
+        share_screen_button.setOnClickListener {
+                startScreenCapture()
+        }
     }
 
     private fun checkCameraAndAudioPermission() {
@@ -114,6 +135,18 @@ class RTCActivity : AppCompatActivity() {
         } else {
             onCameraAndAudioPermissionGranted()
         }
+    }
+
+    private fun startScreenCapture() {
+        if(Build.VERSION.SDK_INT >=28) {
+            // Start a foreground service and post notification regarding the screen share
+            val intent = Intent(this, BackgroundService::class.java)
+            intent.setAction(BackgroundService.ACTION_START_FOREGROUND_SERVICE)
+            startService(intent)
+            //bindService(intent,serviceConnection,Context.BIND_AUTO_CREATE)
+        }
+        val mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        startActivityForResult(mediaProjectionManager.createScreenCaptureIntent(), 29)
     }
 
     private fun onCameraAndAudioPermissionGranted() {
@@ -165,9 +198,10 @@ class RTCActivity : AppCompatActivity() {
         rtcClient.initSurfaceView(remote_view)
         rtcClient.initSurfaceView(local_view)
         rtcClient.startLocalVideoCapture(local_view)
+        //startScreenCapture()
         signallingClient =  SignalingClient(meetingID,createSignallingClientListener())
         if (!isJoin)
-            rtcClient.call(sdpObserver,meetingID)
+           rtcClient.call(sdpObserver,meetingID)
     }
 
     private fun createSignallingClientListener() = object : SignalingClientListener {
@@ -234,6 +268,23 @@ class RTCActivity : AppCompatActivity() {
         } else {
             onCameraPermissionDenied()
         }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != 29)
+            return
+       rtcClient.startScreenSharing(data!!, local_view, createScreenCapturer(data))
+        rtcClient.call(sdpObserver,meetingID)
+    }
+
+    private fun createScreenCapturer(data: Intent): VideoCapturer {
+        return ScreenCapturerAndroid(
+            data, object : MediaProjection.Callback() {
+                override fun onStop() {
+                    Util.report("User revoked permission to capture the screen.")
+                }
+            })
     }
 
     private fun onCameraPermissionDenied() {

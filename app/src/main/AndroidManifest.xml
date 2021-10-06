@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
     <application
         android:allowBackup="true"
@@ -16,7 +17,8 @@
         android:theme="@style/Theme.WebRTCSample">
         <activity android:name="com.developerspace.webrtcsample.MainActivity"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.FullScreen">
+            android:theme="@style/Theme.FullScreen"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -26,6 +28,13 @@
         <activity android:name="com.developerspace.webrtcsample.RTCActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.FullScreen"/>
+
+        <service
+            android:name="com.developerspace.webrtcsample.BackgroundService"
+            android:enabled="true"
+            android:exported="true"
+            android:stopWithTask="true"
+            android:foregroundServiceType="mediaProjection" />
     </application>
 
 </manifest>

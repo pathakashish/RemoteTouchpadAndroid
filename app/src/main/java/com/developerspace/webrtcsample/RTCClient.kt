@@ -2,11 +2,20 @@ package com.developerspace.webrtcsample
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
+import android.media.projection.MediaProjection
 import android.util.Log
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import org.webrtc.*
+import org.webrtc.ScreenCapturerAndroid
 
+import android.app.Activity
+import android.os.Build
+import androidx.annotation.RequiresApi
+import org.slf4j.helpers.Util.report
+
+import org.webrtc.VideoCapturer
 
 class RTCClient(
         context: Application,
@@ -42,6 +51,7 @@ class RTCClient(
 
     private val audioSource by lazy { peerConnectionFactory.createAudioSource(MediaConstraints())}
     private val localVideoSource by lazy { peerConnectionFactory.createVideoSource(false) }
+    private val localVideoForSharingSource by lazy { peerConnectionFactory.createVideoSource(true) }
     private val peerConnection by lazy { buildPeerConnection(observer) }
 
     private fun initPeerConnectionFactory(context: Application) {
@@ -79,7 +89,7 @@ class RTCClient(
             }
 
     fun initSurfaceView(view: SurfaceViewRenderer) = view.run {
-        setMirror(true)
+        setMirror(false)
         setEnableHardwareScaler(true)
         init(rootEglBase.eglBaseContext, null)
     }
@@ -87,7 +97,7 @@ class RTCClient(
     fun startLocalVideoCapture(localVideoOutput: SurfaceViewRenderer) {
         val surfaceTextureHelper = SurfaceTextureHelper.create(Thread.currentThread().name, rootEglBase.eglBaseContext)
         (videoCapturer as VideoCapturer).initialize(surfaceTextureHelper, localVideoOutput.context, localVideoSource.capturerObserver)
-        videoCapturer.startCapture(320, 240, 60)
+        videoCapturer.startCapture(1280, 720, 30)
         localAudioTrack = peerConnectionFactory.createAudioTrack(LOCAL_TRACK_ID + "_audio", audioSource);
         localVideoTrack = peerConnectionFactory.createVideoTrack(LOCAL_TRACK_ID, localVideoSource)
         localVideoTrack?.addSink(localVideoOutput)
@@ -95,6 +105,23 @@ class RTCClient(
         localStream.addTrack(localVideoTrack)
         localStream.addTrack(localAudioTrack)
         peerConnection?.addStream(localStream)
+    }
+
+    fun startScreenSharing(data: Intent, localVideoOutput: SurfaceViewRenderer, capturer: VideoCapturer) {
+        Log.d("Rtc", "startScreenSharing()")
+        stopCameraShare()
+        val videoCap = capturer
+        val surfaceTextureHelper = SurfaceTextureHelper.create(Thread.currentThread().name, rootEglBase.eglBaseContext)
+        videoCap.initialize(surfaceTextureHelper, localVideoOutput.context, localVideoForSharingSource.capturerObserver)
+        videoCap.startCapture(1920, 1080, 60)
+        localAudioTrack = peerConnectionFactory.createAudioTrack("ARDAMSa0" + "_audio", audioSource)
+        localVideoTrack = peerConnectionFactory.createVideoTrack("ARDAMSv0", localVideoForSharingSource)
+        localVideoTrack?.addSink(localVideoOutput)
+        val localStream = peerConnectionFactory.createLocalMediaStream("ARDAMS")
+        localStream.addTrack(localVideoTrack)
+        localStream.addTrack(localAudioTrack)
+        peerConnection?.addStream(localStream)
+
     }
 
     private fun PeerConnection.call(sdpObserver: SdpObserver, meetingID: String) {
@@ -106,7 +133,7 @@ class RTCClient(
             override fun onCreateSuccess(desc: SessionDescription?) {
                 setLocalDescription(object : SdpObserver {
                     override fun onSetFailure(p0: String?) {
-                        Log.e(TAG, "onSetFailure: $p0")
+                        Log.e(TAG, "onSetFailure789: $p0")
                     }
 
                     override fun onSetSuccess() {
@@ -137,7 +164,7 @@ class RTCClient(
             }
 
             override fun onSetFailure(p0: String?) {
-                Log.e(TAG, "onSetFailure: $p0")
+                Log.e(TAG, "onSetFailure456: $p0")
             }
 
             override fun onCreateFailure(p0: String?) {
@@ -166,7 +193,7 @@ class RTCClient(
                         }
                 setLocalDescription(object : SdpObserver {
                     override fun onSetFailure(p0: String?) {
-                        Log.e(TAG, "onSetFailure: $p0")
+                        Log.e(TAG, "onSetFailure123: $p0")
                     }
 
                     override fun onSetSuccess() {
@@ -220,6 +247,7 @@ class RTCClient(
         peerConnection?.addIceCandidate(iceCandidate)
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     fun endCall(meetingID: String) {
         db.collection("calls").document(meetingID).collection("candidates")
                 .get().addOnSuccessListener {
@@ -253,6 +281,13 @@ class RTCClient(
     fun enableVideo(videoEnabled: Boolean) {
         if (localVideoTrack !=null)
             localVideoTrack?.setEnabled(videoEnabled)
+    }
+
+    private fun stopCameraShare(){
+        val localStream = peerConnectionFactory.createLocalMediaStream(LOCAL_STREAM_ID)
+        localStream.removeTrack(localVideoTrack)
+        videoCapturer.stopCapture()
+        localVideoTrack?.dispose()
     }
 
     fun enableAudio(audioEnabled: Boolean) {
