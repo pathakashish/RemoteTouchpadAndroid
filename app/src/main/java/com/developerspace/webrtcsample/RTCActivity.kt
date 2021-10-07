@@ -113,7 +113,19 @@ class RTCActivity : AppCompatActivity() {
         }
 
         share_screen_button.setOnClickListener {
+            if (isScreenShared){
+                share_screen_button.setImageResource(R.drawable.ic_baseline_screen_share_24)
+
+                isScreenShared=false
+                isVideoPaused=true
+                rtcClient.enableVideo(isVideoPaused)
+                stopScreenSharing()
+            }else{
+                share_screen_button.setImageResource(R.drawable.ic_baseline_stop_screen_share_24)
+                isVideoPaused=true
+                isScreenShared=true
                 startScreenCapture()
+            }
         }
     }
 
@@ -291,6 +303,11 @@ class RTCActivity : AppCompatActivity() {
             return
        rtcClient.startScreenSharing(data!!, local_view, createScreenCapturer(data))
         rtcClient.call(sdpObserver,meetingID)
+    }
+
+    private fun stopScreenSharing(){
+        rtcClient.startLocalVideoCapture(local_view)
+       // rtcClient.call(sdpObserver,meetingID)
     }
 
     private fun createScreenCapturer(data: Intent): VideoCapturer {

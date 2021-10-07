@@ -3,17 +3,13 @@ package com.developerspace.webrtcsample
 import android.app.Application
 import android.content.Context
 import android.content.Intent
-import android.media.projection.MediaProjection
 import android.util.Log
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import org.webrtc.*
-import org.webrtc.ScreenCapturerAndroid
 
-import android.app.Activity
 import android.os.Build
 import androidx.annotation.RequiresApi
-import org.slf4j.helpers.Util.report
 
 import org.webrtc.VideoCapturer
 
@@ -27,6 +23,7 @@ class RTCClient(
         private const val LOCAL_STREAM_ID = "local_track"
     }
 
+    private  var screenShareCapturer: VideoCapturer?=null
     private val rootEglBase: EglBase = EglBase.create()
 
     private var localAudioTrack : AudioTrack? = null
@@ -96,13 +93,20 @@ class RTCClient(
     }
 
     fun startLocalVideoCapture(localVideoOutput: SurfaceViewRenderer) {
+        //stopScreenShare(screenShareCaptuer)
+        if (screenShareCapturer!=null){
+            screenShareCapturer?.stopCapture()
+        }
+
         val surfaceTextureHelper = SurfaceTextureHelper.create(Thread.currentThread().name, rootEglBase.eglBaseContext)
         (videoCapturer as VideoCapturer).initialize(surfaceTextureHelper, localVideoOutput.context, localVideoSource.capturerObserver)
         videoCapturer.startCapture(1280, 720, 30)
+
         localAudioTrack = peerConnectionFactory.createAudioTrack(LOCAL_TRACK_ID + "_audio", audioSource);
         localVideoTrack = peerConnectionFactory.createVideoTrack(LOCAL_TRACK_ID, localVideoSource)
-        localVideoTrack?.addSink(localVideoOutput)
         localVideoStream = peerConnectionFactory.createLocalMediaStream(LOCAL_STREAM_ID)
+
+        localVideoTrack?.addSink(localVideoOutput)
         localVideoStream.addTrack(localVideoTrack)
         localVideoStream.addTrack(localAudioTrack)
         peerConnection?.addStream(localVideoStream)
@@ -110,11 +114,12 @@ class RTCClient(
 
     fun startScreenSharing(data: Intent, localVideoOutput: SurfaceViewRenderer, capturer: VideoCapturer) {
         Log.d("Rtc", "startScreenSharing()")
-        stopCameraShare(localVideoOutput)
-        val videoCap = capturer
+        //stopCameraShare(localVideoOutput)
+        videoCapturer.stopCapture()
+        screenShareCapturer = capturer
         val surfaceTextureHelper = SurfaceTextureHelper.create(Thread.currentThread().name, rootEglBase.eglBaseContext)
-        videoCap.initialize(surfaceTextureHelper, localVideoOutput.context, localVideoForSharingSource.capturerObserver)
-        videoCap.startCapture(1920, 1080, 60)
+        screenShareCapturer?.initialize(surfaceTextureHelper, localVideoOutput.context, localVideoForSharingSource.capturerObserver)
+        screenShareCapturer?.startCapture(1920, 1080, 60)
         localAudioTrack = peerConnectionFactory.createAudioTrack("ARDAMSa0" + "_audio", audioSource)
         localVideoTrack = peerConnectionFactory.createVideoTrack("ARDAMSv0", localVideoForSharingSource)
         localVideoTrack?.addSink(localVideoOutput)
@@ -124,6 +129,8 @@ class RTCClient(
         peerConnection?.addStream(localStream)
 
     }
+
+
 
     private fun PeerConnection.call(sdpObserver: SdpObserver, meetingID: String) {
         val constraints = MediaConstraints().apply {
@@ -292,6 +299,17 @@ class RTCClient(
         localVideoTrack?.dispose()
         localAudioTrack?.dispose()
     }
+
+
+
+    /*private fun stopScreenShare(view: VideoCapturer){
+        videoCapturer.stopCapture()
+        localVideoTrack?.removeSink(view)
+        localVideoStream.removeTrack(localVideoTrack)
+        localVideoStream.removeTrack(localAudioTrack)
+        localVideoTrack?.dispose()
+        localAudioTrack?.dispose()
+    }*/
 
     fun enableAudio(audioEnabled: Boolean) {
         if (localAudioTrack != null)
