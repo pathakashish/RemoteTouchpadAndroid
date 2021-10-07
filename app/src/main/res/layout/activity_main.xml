@@ -16,6 +16,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <View
+        android:id="@+id/view_whiteboard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <org.webrtc.SurfaceViewRenderer
         android:id="@+id/local_view"
         android:layout_width="110dp"
@@ -52,6 +60,7 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <LinearLayout
+            android:id="@+id/layout_bottom_options"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/curve_background"
