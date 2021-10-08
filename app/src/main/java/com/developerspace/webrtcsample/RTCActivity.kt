@@ -7,9 +7,12 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.text.TextUtils
 import android.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -22,6 +25,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.slf4j.helpers.Util
 import org.webrtc.*
 import java.util.*
+import kotlin.collections.HashMap
 
 
 @ExperimentalCoroutinesApi
@@ -33,6 +37,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
         private const val AUDIO_PERMISSION = Manifest.permission.RECORD_AUDIO
     }
 
+    private var rtcAccessibilityService: RTCAccessibilityService? = null
     private lateinit var rtcClient: RTCClient
     private lateinit var signallingClient: SignalingClient
 
@@ -120,7 +125,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
         share_screen_button.setOnClickListener {
             if (isScreenShared) {
                 share_screen_button.setImageResource(R.drawable.ic_baseline_screen_share_24)
-
+                remote_control_button.visibility = View.GONE
                 isScreenShared = false
                 isVideoPaused = true
                 rtcClient.enableVideo(isVideoPaused)
@@ -132,6 +137,34 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
                 startScreenCapture()
                 rtcClient.isClient = true
                 rtcClient.listenToLiveEvents(this, meetingID)
+                remote_control_button.visibility = View.VISIBLE
+            }
+        }
+
+        remote_control_button.setOnClickListener {
+            /*rtcClient.eventData.observe(this, {
+                Log.v(TAG, "x : " + it.get("x") + ", Y: " + it.get("y"))
+                rtcAccessibilityService?.performClickEventOnNodeAtGivenCoordinates(
+                    x = it["x"] as Float,
+                    y = it["y"] as Float
+                )
+            })*/
+            rtcClient.rtcClientListener = object : RTCClientListener {
+                override fun onEventReceive(hashData: HashMap<*, *>) {
+                    Log.v(TAG, "x : " + hashData.get("x") + ", Y: " + hashData.get("y"))
+                    rtcAccessibilityService?.performClickEventOnNodeAtGivenCoordinates(
+                        x = hashData["x"] as Float,
+                        y = hashData["y"] as Float
+                    )
+                }
+            }
+            if (!isMyAccessibilityServiceEnabled()) {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                intent.addCategory(Intent.CATEGORY_DEFAULT)
+                startActivityForResult(intent, 90)
+            } else {
+                rtcAccessibilityService =
+                    RTCAccessibilityService.getSharedAccessibilityServiceInstance()
             }
         }
     }
@@ -317,10 +350,14 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 29)
-            return
-        rtcClient.startScreenSharing(data!!, local_view, createScreenCapturer(data))
-        rtcClient.call(sdpObserver, meetingID)
+        if (requestCode == 29) {
+            rtcClient.startScreenSharing(data!!, local_view, createScreenCapturer(data))
+            rtcClient.call(sdpObserver, meetingID)
+        } else if (requestCode == 90) {
+            rtcClient.call(sdpObserver, meetingID)
+            rtcAccessibilityService =
+                RTCAccessibilityService.getSharedAccessibilityServiceInstance()
+        }
     }
 
     private fun stopScreenSharing() {
@@ -384,5 +421,39 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
         velocityY: Float
     ): Boolean {
         return true
+    }
+
+    private fun isMyAccessibilityServiceEnabled(): Boolean {
+        var accessibilityEnabled = 0
+        val service = packageName + "/" + RTCAccessibilityService::class.java.canonicalName
+        try {
+            accessibilityEnabled = Settings.Secure.getInt(
+                contentResolver,
+                Settings.Secure.ACCESSIBILITY_ENABLED
+            )
+        } catch (e: Settings.SettingNotFoundException) {
+            Log.e(
+                MainActivity::class.java.simpleName,
+                "Error finding setting, default accessibility to not found: ",
+                e
+            )
+        }
+        val mStringColonSplitter = TextUtils.SimpleStringSplitter(':')
+        if (accessibilityEnabled == 1) {
+            val settingValue: String = Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            mStringColonSplitter.setString(settingValue)
+            while (mStringColonSplitter.hasNext()) {
+                val accessibilityService = mStringColonSplitter.next()
+                if (accessibilityService.equals(service, ignoreCase = true)) {
+                    return true
+                }
+            }
+        } else {
+            Log.v(MainActivity::class.java.simpleName, "***ACCESSIBILITY IS DISABLED***")
+        }
+        return false
     }
 }

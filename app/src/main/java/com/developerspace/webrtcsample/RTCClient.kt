@@ -7,6 +7,7 @@ import android.os.Build
 import android.util.Log
 import android.view.MotionEvent
 import androidx.annotation.RequiresApi
+import androidx.lifecycle.MutableLiveData
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import org.webrtc.*
@@ -31,6 +32,7 @@ class RTCClient(
     var isClient: Boolean = false
 
     var remoteSessionDescription: SessionDescription? = null
+    var rtcClientListener: RTCClientListener? = null
 
     val db = Firebase.firestore
 
@@ -371,6 +373,7 @@ class RTCClient(
             }
     }
 
+    val eventData: MutableLiveData<HashMap<*, *>> = MutableLiveData()
 
     fun listenToLiveEvents(context: Context, meetingID: String) {
         if (!this.isClient) return
@@ -382,9 +385,16 @@ class RTCClient(
             if (value != null && value.data?.get("event") != null) {
                 val eventHash: HashMap<*, *> =
                     value.data?.get("event") as HashMap<*, *>
-
+                eventData.postValue(eventHash)
+                rtcClientListener?.onEventReceive(eventHash)
             }
         }
     }
+
+}
+
+interface RTCClientListener {
+
+    fun onEventReceive(hashData: HashMap<*, *>)
 
 }

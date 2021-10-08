@@ -129,6 +129,20 @@
                 app:srcCompat="@drawable/ic_baseline_screen_share_24" />
 
             <ImageView
+                android:id="@+id/remote_control_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="16dp"
+                android:background="@drawable/circle_background"
+                android:clickable="true"
+                android:contentDescription="Remote Control Button"
+                android:focusable="true"
+                android:padding="12dp"
+                android:visibility="gone"
+                app:backgroundTint="@color/cardview_dark_background"
+                app:srcCompat="@drawable/ic_baseline_settings_remote_24" />
+
+            <ImageView
                 android:id="@+id/audio_output_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
