@@ -82,12 +82,12 @@ class SignalingClient(
                         if (data?.containsKey("type")!! &&
                             data.getValue("type").toString() == "OFFER") {
                                 listener.onOfferReceived(SessionDescription(
-                                    SessionDescription.Type.OFFER,data["sdp"].toString()))
+                                    SessionDescription.Type.OFFER,data["sdp"].toString()),data.getValue("sharingScreen") as Boolean)
                             SDPtype = "Offer"
-                        } else if (data?.containsKey("type") &&
+                        } else if (data.containsKey("type") &&
                             data.getValue("type").toString() == "ANSWER") {
                                 listener.onAnswerReceived(SessionDescription(
-                                    SessionDescription.Type.ANSWER,data["sdp"].toString()))
+                                    SessionDescription.Type.ANSWER,data["sdp"].toString()),data.getValue("sharingScreen") as Boolean)
                             SDPtype = "Answer"
                         } else if (data.containsKey("type") &&//!Constants.isIntiatedNow &&
                             data.getValue("type").toString() == "END_CALL") {
@@ -95,6 +95,10 @@ class SignalingClient(
                             SDPtype = "End Call"
 
                         }
+                        /* if (data.containsKey("sharingScreen") ) {
+                             listener.onScreenShared(data.getValue("sharingScreen") as Boolean)
+
+                        }*/
                         Log.d(TAG, "Current data: ${snapshot.data}")
                     } else {
                         Log.d(TAG, "Current data: null")

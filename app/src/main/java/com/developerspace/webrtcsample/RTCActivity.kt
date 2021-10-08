@@ -20,9 +20,6 @@ import org.slf4j.helpers.Util
 import org.webrtc.*
 import java.util.*
 
-import android.os.IBinder
-
-import android.R.attr.name
 import android.content.*
 import android.view.View
 
@@ -41,9 +38,9 @@ class RTCActivity : AppCompatActivity() {
 
     private val audioManager by lazy { RTCAudioManager.create(this) }
 
-    val TAG = "MainActivity"
+    val TAG = "RTCClient"
 
-    private var meetingID : String = "test-call"
+    private var meetingID: String = "test-call"
 
     private var isJoin = false
 
@@ -69,7 +66,7 @@ class RTCActivity : AppCompatActivity() {
         if (intent.hasExtra("meetingID"))
             meetingID = intent.getStringExtra("meetingID")!!
         if (intent.hasExtra("isJoin"))
-            isJoin = intent.getBooleanExtra("isJoin",false)
+            isJoin = intent.getBooleanExtra("isJoin", false)
 
         checkCameraAndAudioPermission()
         audioManager.selectAudioDevice(RTCAudioManager.AudioDevice.SPEAKER_PHONE)
@@ -113,17 +110,19 @@ class RTCActivity : AppCompatActivity() {
         }
 
         share_screen_button.setOnClickListener {
-            if (isScreenShared){
+            if (isScreenShared) {
                 share_screen_button.setImageResource(R.drawable.ic_baseline_screen_share_24)
 
-                isScreenShared=false
-                isVideoPaused=true
+                isScreenShared = false
+                isVideoPaused = true
                 rtcClient.enableVideo(isVideoPaused)
+                rtcClient.updateShareScreen(meetingID, isScreenShared)
                 stopScreenSharing()
-            }else{
+            } else {
                 share_screen_button.setImageResource(R.drawable.ic_baseline_stop_screen_share_24)
-                isVideoPaused=true
-                isScreenShared=true
+                isVideoPaused = true
+                isScreenShared = true
+
                 startScreenCapture()
             }
         }
@@ -132,8 +131,9 @@ class RTCActivity : AppCompatActivity() {
     private fun checkCameraAndAudioPermission() {
         if ((ContextCompat.checkSelfPermission(this, CAMERA_PERMISSION)
                     != PackageManager.PERMISSION_GRANTED) &&
-            (ContextCompat.checkSelfPermission(this,AUDIO_PERMISSION)
-                    != PackageManager.PERMISSION_GRANTED)) {
+            (ContextCompat.checkSelfPermission(this, AUDIO_PERMISSION)
+                    != PackageManager.PERMISSION_GRANTED)
+        ) {
             requestCameraAndAudioPermission()
         } else {
             onCameraAndAudioPermissionGranted()
@@ -144,12 +144,12 @@ class RTCActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Are you sure to close the screen?")
             .setMessage("Your ongoing call will be disconnected!")
-            .setPositiveButton( "Yes", object : DialogInterface.OnClickListener{
+            .setPositiveButton("Yes", object : DialogInterface.OnClickListener {
                 override fun onClick(p0: DialogInterface?, p1: Int) {
                     endCall()
                 }
             })
-            .setNegativeButton("No", object : DialogInterface.OnClickListener{
+            .setNegativeButton("No", object : DialogInterface.OnClickListener {
                 override fun onClick(p0: DialogInterface?, p1: Int) {
                 }
             })
@@ -165,70 +165,71 @@ class RTCActivity : AppCompatActivity() {
     }
 
     private fun startScreenCapture() {
-        if(Build.VERSION.SDK_INT >=28) {
+        if (Build.VERSION.SDK_INT >= 28) {
             // Start a foreground service and post notification regarding the screen share
             val intent = Intent(this, BackgroundService::class.java)
             intent.setAction(BackgroundService.ACTION_START_FOREGROUND_SERVICE)
             startService(intent)
             //bindService(intent,serviceConnection,Context.BIND_AUTO_CREATE)
         }
-        val mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        val mediaProjectionManager =
+            getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         startActivityForResult(mediaProjectionManager.createScreenCaptureIntent(), 29)
     }
 
     private fun onCameraAndAudioPermissionGranted() {
         rtcClient = RTCClient(
-                application,
-                object : PeerConnectionObserver() {
-                    override fun onIceCandidate(p0: IceCandidate?) {
-                        super.onIceCandidate(p0)
-                        signallingClient.sendIceCandidate(p0, isJoin)
-                        rtcClient.addIceCandidate(p0)
-                    }
-
-                    override fun onAddStream(p0: MediaStream?) {
-                        super.onAddStream(p0)
-                        Log.e(TAG, "onAddStream: $p0")
-                        p0?.videoTracks?.get(0)?.addSink(remote_view)
-                    }
-
-                    override fun onIceConnectionChange(p0: PeerConnection.IceConnectionState?) {
-                        Log.e(TAG, "onIceConnectionChange: $p0")
-                    }
-
-                    override fun onIceConnectionReceivingChange(p0: Boolean) {
-                        Log.e(TAG, "onIceConnectionReceivingChange: $p0")
-                    }
-
-                    override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
-                        Log.e(TAG, "onConnectionChange: $newState")
-                    }
-
-                    override fun onDataChannel(p0: DataChannel?) {
-                        Log.e(TAG, "onDataChannel: $p0")
-                    }
-
-                    override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
-                        Log.e(TAG, "onStandardizedIceConnectionChange: $newState")
-                    }
-
-                    override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
-                        Log.e(TAG, "onAddTrack: $p0 \n $p1")
-                    }
-
-                    override fun onTrack(transceiver: RtpTransceiver?) {
-                        Log.e(TAG, "onTrack: $transceiver" )
-                    }
+            application,
+            object : PeerConnectionObserver() {
+                override fun onIceCandidate(p0: IceCandidate?) {
+                    super.onIceCandidate(p0)
+                    signallingClient.sendIceCandidate(p0, isJoin)
+                    rtcClient.addIceCandidate(p0)
                 }
+
+                override fun onAddStream(p0: MediaStream?) {
+                    super.onAddStream(p0)
+                    Log.e(TAG, "onAddStream: $p0")
+                    p0?.videoTracks?.get(0)?.addSink(remote_view)
+                }
+
+                override fun onIceConnectionChange(p0: PeerConnection.IceConnectionState?) {
+                    Log.e(TAG, "onIceConnectionChange: $p0")
+                }
+
+                override fun onIceConnectionReceivingChange(p0: Boolean) {
+                    Log.e(TAG, "onIceConnectionReceivingChange: $p0")
+                }
+
+                override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
+                    Log.e(TAG, "onConnectionChange: $newState")
+                }
+
+                override fun onDataChannel(p0: DataChannel?) {
+                    Log.e(TAG, "onDataChannel: $p0")
+                }
+
+                override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
+                    Log.e(TAG, "onStandardizedIceConnectionChange: $newState")
+                }
+
+                override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
+                    Log.e(TAG, "onAddTrack: $p0 \n $p1")
+                }
+
+                override fun onTrack(transceiver: RtpTransceiver?) {
+                    Log.e(TAG, "onTrack: $transceiver")
+                }
+            }
         )
 
         rtcClient.initSurfaceView(remote_view)
         rtcClient.initSurfaceView(local_view)
         rtcClient.startLocalVideoCapture(local_view)
         //startScreenCapture()
-        signallingClient =  SignalingClient(meetingID,createSignallingClientListener())
+        signallingClient = SignalingClient(meetingID, createSignallingClientListener())
         if (!isJoin)
-           rtcClient.call(sdpObserver,meetingID)
+            rtcClient.call(sdpObserver, meetingID)
     }
 
     private fun createSignallingClientListener() = object : SignalingClientListener {
@@ -236,17 +237,28 @@ class RTCActivity : AppCompatActivity() {
             end_call_button.isClickable = true
         }
 
-        override fun onOfferReceived(description: SessionDescription) {
+        override fun onOfferReceived(description: SessionDescription, sharingScreen: Boolean) {
+            isScreenShared = sharingScreen
             rtcClient.onRemoteSessionReceived(description)
             Constants.isIntiatedNow = false
-            rtcClient.answer(sdpObserver,meetingID)
+            rtcClient.answer(sdpObserver, meetingID, isScreenShared)
             remote_view_loading.isGone = true
+
+            toggleLocalView()
+            Log.v(TAG, "onOfferReceived :$isScreenShared")
+
         }
 
-        override fun onAnswerReceived(description: SessionDescription) {
+        override fun onAnswerReceived(description: SessionDescription, sharingScreen: Boolean) {
+            isScreenShared = sharingScreen
+
             rtcClient.onRemoteSessionReceived(description)
             Constants.isIntiatedNow = false
             remote_view_loading.isGone = true
+
+            toggleLocalView()
+            Log.v(TAG, "onAnswerReceived :$isScreenShared")
+
         }
 
         override fun onIceCandidateReceived(iceCandidate: IceCandidate) {
@@ -254,41 +266,60 @@ class RTCActivity : AppCompatActivity() {
         }
 
         override fun onCallEnded() {
-           // if (!Constants.isCallEnded) {
-                Constants.isCallEnded = true
-                rtcClient.endCall(meetingID)
-                finish()
-                startActivity(Intent(this@RTCActivity, MainActivity::class.java))
-          //  }
+            // if (!Constants.isCallEnded) {
+            Constants.isCallEnded = true
+            rtcClient.endCall(meetingID)
+            finish()
+            startActivity(Intent(this@RTCActivity, MainActivity::class.java))
+            //  }
         }
+
+        override fun onScreenShared(boolean: Boolean) {
+            Log.v(TAG, "onScreenShared: $boolean")
+
+        }
+    }
+
+    private fun toggleLocalView(){
+        if (isScreenShared) local_view.visibility = View.GONE
+        else local_view.visibility = View.VISIBLE
     }
 
     private fun requestCameraAndAudioPermission(dialogShown: Boolean = false) {
         if (ActivityCompat.shouldShowRequestPermissionRationale(this, CAMERA_PERMISSION) &&
             ActivityCompat.shouldShowRequestPermissionRationale(this, AUDIO_PERMISSION) &&
-            !dialogShown) {
+            !dialogShown
+        ) {
             showPermissionRationaleDialog()
         } else {
-            ActivityCompat.requestPermissions(this, arrayOf(CAMERA_PERMISSION, AUDIO_PERMISSION), CAMERA_AUDIO_PERMISSION_REQUEST_CODE)
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(CAMERA_PERMISSION, AUDIO_PERMISSION),
+                CAMERA_AUDIO_PERMISSION_REQUEST_CODE
+            )
         }
     }
 
     private fun showPermissionRationaleDialog() {
         AlertDialog.Builder(this)
-                .setTitle("Camera And Audio Permission Required")
-                .setMessage("This app need the camera and audio to function")
-                .setPositiveButton("Grant") { dialog, _ ->
-                    dialog.dismiss()
-                    requestCameraAndAudioPermission(true)
-                }
-                .setNegativeButton("Deny") { dialog, _ ->
-                    dialog.dismiss()
-                    onCameraPermissionDenied()
-                }
-                .show()
+            .setTitle("Camera And Audio Permission Required")
+            .setMessage("This app need the camera and audio to function")
+            .setPositiveButton("Grant") { dialog, _ ->
+                dialog.dismiss()
+                requestCameraAndAudioPermission(true)
+            }
+            .setNegativeButton("Deny") { dialog, _ ->
+                dialog.dismiss()
+                onCameraPermissionDenied()
+            }
+            .show()
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_AUDIO_PERMISSION_REQUEST_CODE && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
             onCameraAndAudioPermissionGranted()
@@ -301,13 +332,13 @@ class RTCActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != 29)
             return
-       rtcClient.startScreenSharing(data!!, local_view, createScreenCapturer(data))
-        rtcClient.call(sdpObserver,meetingID)
+        rtcClient.startScreenSharing(data!!, local_view, createScreenCapturer(data))
+        rtcClient.call(sdpObserver, meetingID, isScreenShared)
     }
 
-    private fun stopScreenSharing(){
+    private fun stopScreenSharing() {
         rtcClient.startLocalVideoCapture(local_view)
-       // rtcClient.call(sdpObserver,meetingID)
+        // rtcClient.call(sdpObserver,meetingID)
     }
 
     private fun createScreenCapturer(data: Intent): VideoCapturer {
@@ -318,7 +349,6 @@ class RTCActivity : AppCompatActivity() {
                 }
             })
     }
-
 
 
     private fun onCameraPermissionDenied() {

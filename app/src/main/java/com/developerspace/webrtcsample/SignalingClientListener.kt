@@ -5,8 +5,10 @@ import org.webrtc.SessionDescription
 
 interface SignalingClientListener {
     fun onConnectionEstablished()
-    fun onOfferReceived(description: SessionDescription)
-    fun onAnswerReceived(description: SessionDescription)
+    fun onOfferReceived(description: SessionDescription,boolean: Boolean)
+    fun onAnswerReceived(description: SessionDescription,boolean: Boolean)
     fun onIceCandidateReceived(iceCandidate: IceCandidate)
     fun onCallEnded()
+    fun onScreenShared(boolean: Boolean)
+
 }

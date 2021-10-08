@@ -132,10 +132,11 @@ class RTCClient(
 
 
 
-    private fun PeerConnection.call(sdpObserver: SdpObserver, meetingID: String) {
+    private fun PeerConnection.call(sdpObserver: SdpObserver, meetingID: String,screenShare: Boolean?=false) {
         val constraints = MediaConstraints().apply {
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
         }
+        Log.v(TAG,"call screenshare:$screenShare")
 
         createOffer(object : SdpObserver by sdpObserver {
             override fun onCreateSuccess(desc: SessionDescription?) {
@@ -147,7 +148,8 @@ class RTCClient(
                     override fun onSetSuccess() {
                         val offer = hashMapOf(
                                 "sdp" to desc?.description,
-                                "type" to desc?.type
+                                "type" to desc?.type,
+                            "sharingScreen" to screenShare
                         )
                         db.collection("calls").document(meetingID)
                                 .set(offer)
@@ -181,15 +183,19 @@ class RTCClient(
         }, constraints)
     }
 
-    private fun PeerConnection.answer(sdpObserver: SdpObserver, meetingID: String) {
+    private fun PeerConnection.answer(sdpObserver: SdpObserver, meetingID: String,shareScreen:Boolean?=false) {
         val constraints = MediaConstraints().apply {
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
         }
+        Log.v(TAG,"answer screenshare:$shareScreen")
+
         createAnswer(object : SdpObserver by sdpObserver {
             override fun onCreateSuccess(desc: SessionDescription?) {
                 val answer = hashMapOf(
                         "sdp" to desc?.description,
-                        "type" to desc?.type
+                        "type" to desc?.type,
+                    "sharingScreen" to shareScreen
+
                 )
                 db.collection("calls").document(meetingID)
                         .set(answer)
@@ -225,9 +231,9 @@ class RTCClient(
         }, constraints)
     }
 
-    fun call(sdpObserver: SdpObserver, meetingID: String) = peerConnection?.call(sdpObserver, meetingID)
+    fun call(sdpObserver: SdpObserver, meetingID: String,screenShare:Boolean?=false) = peerConnection?.call(sdpObserver, meetingID,screenShare)
 
-    fun answer(sdpObserver: SdpObserver, meetingID: String) = peerConnection?.answer(sdpObserver, meetingID)
+    fun answer(sdpObserver: SdpObserver, meetingID: String,screenShare:Boolean?=false) = peerConnection?.answer(sdpObserver, meetingID,screenShare)
 
     fun onRemoteSessionReceived(sessionDescription: SessionDescription) {
         remoteSessionDescription = sessionDescription
@@ -238,6 +244,7 @@ class RTCClient(
 
             override fun onSetSuccess() {
                 Log.e(TAG, "onSetSuccessRemoteSession")
+
             }
 
             override fun onCreateSuccess(p0: SessionDescription?) {
@@ -284,6 +291,14 @@ class RTCClient(
                 }
 
         peerConnection?.close()
+    }
+
+    fun updateShareScreen(meetingID:String,isSharingScree: Boolean) {
+
+        db.collection("calls").document(meetingID)
+            .update(mapOf(
+                "sharingScreen" to isSharingScree
+            ))
     }
 
     fun enableVideo(videoEnabled: Boolean) {
