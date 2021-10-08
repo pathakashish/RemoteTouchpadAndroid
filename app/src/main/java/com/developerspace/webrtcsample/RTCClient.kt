@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
-import android.widget.Toast
+import android.view.MotionEvent
 import androidx.annotation.RequiresApi
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -354,7 +354,7 @@ class RTCClient(
         videoCapturer.switchCamera(null)
     }
 
-    fun sendLiveEvents(meetingID: String, event: LiveEvent) {
+    fun sendLiveEvents(meetingID: String, event: MotionEvent) {
 
         val eventHash = hashMapOf(
             "event" to event
@@ -378,18 +378,11 @@ class RTCClient(
         val docRef = db.collection("calls").document(meetingID)
             .collection("liveEvents").document("newEvent")
 
-        docRef.addSnapshotListener { snapshot, e ->
-            if (e != null) {
-                Log.w(TAG, "Listen failed.", e)
-                return@addSnapshotListener
-            }
+        docRef.addSnapshotListener { value, error ->
+            if (value != null && value.data?.get("event") != null) {
+                val eventHash: HashMap<*, *> =
+                    value.data?.get("event") as HashMap<*, *>
 
-            if (snapshot != null && snapshot.exists()) {
-                val motionEvent = snapshot.getString("x")
-                //Log.e("parse", motionEvent)
-                Toast.makeText(context, "Received Event", Toast.LENGTH_SHORT).show()
-            } else {
-                Log.d(TAG, "Current data: null")
             }
         }
     }

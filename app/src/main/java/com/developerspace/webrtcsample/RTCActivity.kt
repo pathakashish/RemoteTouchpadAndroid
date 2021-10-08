@@ -351,19 +351,16 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
     }
 
     override fun onDown(e: MotionEvent?): Boolean {
-        val liveEvent = LiveEvent(e!!.action, e.x, e.y)
-        rtcClient.sendLiveEvents(meetingID, liveEvent)
+        rtcClient.sendLiveEvents(meetingID, e!!)
         return true
     }
 
     override fun onShowPress(e: MotionEvent?) {
-        val liveEvent = LiveEvent(e!!.action, e.x, e.y)
-        rtcClient.sendLiveEvents(meetingID, liveEvent)
+        rtcClient.sendLiveEvents(meetingID, e!!)
     }
 
     override fun onSingleTapUp(e: MotionEvent?): Boolean {
-        val liveEvent = LiveEvent(e!!.action, e.x, e.y)
-        rtcClient.sendLiveEvents(meetingID, liveEvent)
+        rtcClient.sendLiveEvents(meetingID, e!!)
         return true
     }
 
@@ -377,8 +374,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
     }
 
     override fun onLongPress(e: MotionEvent?) {
-        val liveEvent = LiveEvent(e!!.action, e.x, e.y)
-        rtcClient.sendLiveEvents(meetingID, liveEvent)
+        rtcClient.sendLiveEvents(meetingID, e!!)
     }
 
     override fun onFling(
@@ -387,7 +383,6 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
         velocityX: Float,
         velocityY: Float
     ): Boolean {
-
         return true
     }
 }
