@@ -115,6 +115,7 @@ class RTCAccessibilityService : AccessibilityService(),
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
+        sharedServiceInstance = null
         return super.onUnbind(intent)
     }
 
@@ -143,8 +144,8 @@ class RTCAccessibilityService : AccessibilityService(),
 
     fun performClickEventOnNodeAtGivenCoordinates(
         rootNode: AccessibilityNodeInfo? = rootInActiveWindow,
-        x: Float,
-        y: Float
+        x: Int,
+        y: Int
     ) {
 
         rootNode?.let { accessibilityNodeInfo ->
@@ -160,7 +161,7 @@ class RTCAccessibilityService : AccessibilityService(),
                             "EVENT",
                             "Node " + nodeInfo.text + " Rect = Left: " + rect.left + ", Top: " + rect.top + ", Right: " + rect.right + ", Bottom: " + rect.bottom
                         )
-                        if (rect.contains(x.toInt(), y.toInt()) && nodeInfo.text == "CLICK EVENT") {
+                        if (rect.contains(x, y)) {
                             nodeInfo.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                         }
                     }

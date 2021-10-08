@@ -10,9 +10,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
-import android.view.GestureDetector
-import android.view.MotionEvent
-import android.view.View
+import android.view.*
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -25,7 +23,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.slf4j.helpers.Util
 import org.webrtc.*
 import java.util.*
-import kotlin.collections.HashMap
 
 
 @ExperimentalCoroutinesApi
@@ -66,6 +63,9 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN)
+
         setContentView(R.layout.activity_main)
 
         val gestureDetector: GestureDetector = GestureDetector(applicationContext, this)
@@ -152,9 +152,13 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
             rtcClient.rtcClientListener = object : RTCClientListener {
                 override fun onEventReceive(hashData: HashMap<*, *>) {
                     Log.v(TAG, "x : " + hashData.get("x") + ", Y: " + hashData.get("y"))
+                    if (rtcAccessibilityService == null) rtcAccessibilityService =
+                        RTCAccessibilityService.getSharedAccessibilityServiceInstance()
+                    val xCoordinate = (hashData["x"] as Double).toInt()
+                    val yCoordinate = (hashData["y"] as Double).toInt()
                     rtcAccessibilityService?.performClickEventOnNodeAtGivenCoordinates(
-                        x = hashData["x"] as Float,
-                        y = hashData["y"] as Float
+                        x = xCoordinate,
+                        y = yCoordinate
                     )
                 }
             }
