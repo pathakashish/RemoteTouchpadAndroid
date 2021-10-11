@@ -359,7 +359,7 @@ class RTCClient(
     fun sendLiveEvents(meetingID: String, event: MotionEvent) {
 
         val eventHash = hashMapOf(
-            "event" to event
+            "event" to event,
         )
 
         db.collection("calls").document(meetingID)
@@ -385,8 +385,9 @@ class RTCClient(
             if (value != null && value.data?.get("event") != null) {
                 val eventHash: HashMap<*, *> =
                     value.data?.get("event") as HashMap<*, *>
+                val willContinue = value.data?.get("willContinue") as Boolean
                 eventData.postValue(eventHash)
-                rtcClientListener?.onEventReceive(eventHash)
+                rtcClientListener?.onEventReceive(eventHash, willContinue)
             }
         }
     }
@@ -395,6 +396,6 @@ class RTCClient(
 
 interface RTCClientListener {
 
-    fun onEventReceive(hashData: HashMap<*, *>)
+    fun onEventReceive(hashData: HashMap<*, *>, willContinue: Boolean)
 
 }

@@ -12,6 +12,7 @@ import android.text.TextUtils
 import android.util.Log
 import android.view.*
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -23,6 +24,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.slf4j.helpers.Util
 import org.webrtc.*
 import java.util.*
+import kotlin.collections.HashMap
 
 
 @ExperimentalCoroutinesApi
@@ -61,6 +63,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -68,10 +71,30 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
 
         setContentView(R.layout.activity_main)
 
-        val gestureDetector: GestureDetector = GestureDetector(applicationContext, this)
+//        val gestureDetector: GestureDetector = GestureDetector(applicationContext, this)
+//
+//        view_whiteboard.setOnTouchListener { _, event ->
+//            gestureDetector.onTouchEvent(event)
+//            true
+//        }
 
         view_whiteboard.setOnTouchListener { _, event ->
-            gestureDetector.onTouchEvent(event)
+            when(event.action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    // For MotionEvent.ACTION_DOWN
+                    // Gesture will continue to true
+                    // Send XY and when received by phone under control send moveTo
+
+                    // For MotionEvent.ACTION_MOVE
+                    // Gesture will always be true
+                    // Send XY and when received by phone under control send lineTo
+                    rtcClient.sendLiveEvents(meetingID, event!!)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    //Gesture will continue to false
+                    rtcClient.sendLiveEvents(meetingID, event!!)
+                }
+            }
             true
         }
 
@@ -150,16 +173,18 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
                 )
             })*/
             rtcClient.rtcClientListener = object : RTCClientListener {
-                override fun onEventReceive(hashData: HashMap<*, *>) {
+                @RequiresApi(Build.VERSION_CODES.O)
+                override fun onEventReceive(hashData: HashMap<*, *>, willContinue: Boolean) {
                     Log.v(TAG, "x : " + hashData.get("x") + ", Y: " + hashData.get("y"))
                     if (rtcAccessibilityService == null) rtcAccessibilityService =
                         RTCAccessibilityService.getSharedAccessibilityServiceInstance()
                     val xCoordinate = (hashData["x"] as Double).toInt()
                     val yCoordinate = (hashData["y"] as Double).toInt()
-                    rtcAccessibilityService?.performClickEventOnNodeAtGivenCoordinates(
-                        x = xCoordinate,
-                        y = yCoordinate
-                    )
+//                    rtcAccessibilityService?.performClickEventOnNodeAtGivenCoordinates(
+//                        x = xCoordinate,
+//                        y = yCoordinate
+//                    )
+                    rtcAccessibilityService?.performEvent(hashData)
                 }
             }
             if (!isMyAccessibilityServiceEnabled()) {
@@ -190,6 +215,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
             .setTitle("Are you sure to close the screen?")
             .setMessage("Your ongoing call will be disconnected!")
             .setPositiveButton("Yes", object : DialogInterface.OnClickListener {
+                @RequiresApi(Build.VERSION_CODES.N)
                 override fun onClick(p0: DialogInterface?, p1: Int) {
                     endCall()
                 }
@@ -201,6 +227,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
             .show()
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     private fun endCall() {
         rtcClient.endCall(meetingID)
         remote_view.isGone = false
@@ -299,6 +326,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
             rtcClient.addIceCandidate(iceCandidate)
         }
 
+        @RequiresApi(Build.VERSION_CODES.N)
         override fun onCallEnded() {
             // if (!Constants.isCallEnded) {
             Constants.isCallEnded = true

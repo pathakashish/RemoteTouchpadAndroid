@@ -1,18 +1,25 @@
 package com.developerspace.webrtcsample
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.content.Intent
+import android.graphics.Path
 import android.graphics.Rect
+import android.os.Build
 import android.util.Log
+import android.view.MotionEvent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.annotation.RequiresApi
+import java.util.*
 
 const val TAG = "AccessibilityService"
 
 class RTCAccessibilityService : AccessibilityService(),
     AccessibilityManager.TouchExplorationStateChangeListener {
 
+    private var touch: GestureDescription.StrokeDescription? = null
     private lateinit var accessibilityManager: AccessibilityManager
 
     override fun onServiceConnected() {
@@ -96,7 +103,10 @@ class RTCAccessibilityService : AccessibilityService(),
                 Log.v(TAG, "TYPE_VIEW_TEXT_SELECTION_CHANGED Text: " + event.source?.text)
             }
             AccessibilityEvent.TYPE_VIEW_TEXT_TRAVERSED_AT_MOVEMENT_GRANULARITY -> {
-                Log.v(TAG, "TYPE_VIEW_TEXT_TRAVERSED_AT_MOVEMENT_GRANULARITY Text: " + event.source?.text)
+                Log.v(
+                    TAG,
+                    "TYPE_VIEW_TEXT_TRAVERSED_AT_MOVEMENT_GRANULARITY Text: " + event.source?.text
+                )
             }
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
                 Log.v(TAG, "TYPE_WINDOWS_CHANGED Text: " + event.source?.text)
@@ -118,7 +128,6 @@ class RTCAccessibilityService : AccessibilityService(),
         sharedServiceInstance = null
         return super.onUnbind(intent)
     }
-
 
 
     private fun initTouchExplorationCapability() {
@@ -167,6 +176,31 @@ class RTCAccessibilityService : AccessibilityService(),
                     }
                 }
             }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun performEvent(hashData: HashMap<*, *>) {
+        val x = (hashData["x"] as Double).toFloat()
+        val y = (hashData["y"] as Double).toFloat()
+            when(hashData["action"] as Int) {
+                MotionEvent.ACTION_DOWN -> {
+                    // For MotionEvent.ACTION_DOWN
+                    // Gesture will continue to true
+                    // Send XY and when received by phone under control send moveTo
+                    touch = GestureDescription.StrokeDescription(
+                        Path().apply { moveTo(x, y) },
+                        0L,
+                        32L,
+                        true
+                    )
+                }
+                MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
+                    // For MotionEvent.ACTION_MOVE
+                    // Gesture will always be true
+                    // Send XY and when received by phone under control send lineTo
+                    touch?.continueStroke(Path().apply { lineTo(x, y) }, 0, 32L, false)
+                }
         }
     }
 
