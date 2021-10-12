@@ -191,7 +191,7 @@ class RTCAccessibilityService : AccessibilityService(),
                     touch = GestureDescription.StrokeDescription(
                         Path().apply { moveTo(x, y) },
                         0L,
-                        32L,
+                        32L, // TODO Adjust this with eventTime from last event
                         true
                     )
                 }
@@ -202,6 +202,21 @@ class RTCAccessibilityService : AccessibilityService(),
                     touch?.continueStroke(Path().apply { lineTo(x, y) }, 0, 32L, false)
                 }
         }
+        val gestureBuilder = GestureDescription.Builder()
+        gestureBuilder.addStroke(touch!!)
+        dispatchGesture(
+            gestureBuilder.build(), object: GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    Log.v("DEBUG", "onCompleted")
+                }
+
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    super.onCancelled(gestureDescription)
+                    Log.v("DEBUG", "onCancelled")
+                }
+            },
+            null
+        )
     }
 
     companion object {
