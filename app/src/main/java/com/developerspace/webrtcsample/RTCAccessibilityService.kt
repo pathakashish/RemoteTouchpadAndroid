@@ -14,7 +14,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.RequiresApi
 import java.util.*
 
-const val TAG = "AccessibilityService"
+const val TAG = "RTCAccessibilityService"
 
 class RTCAccessibilityService : AccessibilityService(),
     AccessibilityManager.TouchExplorationStateChangeListener {
@@ -179,44 +179,107 @@ class RTCAccessibilityService : AccessibilityService(),
         }
     }
 
+    var downX: Float = 0f
+    var downY: Float = 0f
+    var isOnClick: Boolean = false
+    val SCROLL_THRESHOLD: Int = 10
+    var path: Path? = null
+
     @RequiresApi(Build.VERSION_CODES.O)
     fun performEvent(hashData: HashMap<*, *>) {
         val x = (hashData["x"] as Double).toFloat()
         val y = (hashData["y"] as Double).toFloat()
-            when(hashData["action"] as Int) {
-                MotionEvent.ACTION_DOWN -> {
-                    // For MotionEvent.ACTION_DOWN
-                    // Gesture will continue to true
-                    // Send XY and when received by phone under control send moveTo
+        val downTime: Long = hashData["downTime"] as Long
+        val eventTime: Long = hashData["eventTime"] as Long
+        var duration = eventTime - downTime
+        if (duration == 0L) {
+            duration = 1L
+        }
+        when ((hashData["action"] as Long).toInt() and MotionEvent.ACTION_MASK) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = x
+                downX = y
+                isOnClick = true
+                /*touch = GestureDescription.StrokeDescription(
+                    Path().apply { moveTo(x, y) },
+                    0L,
+                    16L, // TODO Adjust this with eventTime from last event
+                    false
+                )*/
+            }
+            MotionEvent.ACTION_MOVE -> {
+                // For MotionEvent.ACTION_MOVE
+                // Gesture will always be true
+                // Send XY and when received by phone under control send lineTo
+                if (isOnClick && (Math.abs(downX - x) > SCROLL_THRESHOLD || Math.abs(downY - y) > SCROLL_THRESHOLD)) {
+                    isOnClick = false
+                    if (path == null) {
+                        path = Path()
+                        path!!.apply {
+                            moveTo(x, y)
+                        }
+                    }
+                    /*if (touch != null) {
+                        *//*touch = GestureDescription.StrokeDescription(
+                            path!!.apply { moveTo(x, y) },
+                            0L,
+                            duration, // TODO Adjust this with eventTime from last event
+                            true
+                        )*/
+
+                    else {
+                        path!!.apply {
+                            lineTo(x, y)
+                        }
+                        //touch?.continueStroke(path!!.apply { lineTo(x, y) }, 0L, duration, true)
+                   }
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // For MotionEvent.ACTION_MOVE
+                // Gesture will always be true
+                // Send XY and when received by phone under control send lineTo
+                //touch?.continueStroke(Path().apply { lineTo(x, y) }, 0, 12L, false)
+                if (isOnClick) {
                     touch = GestureDescription.StrokeDescription(
                         Path().apply { moveTo(x, y) },
                         0L,
-                        32L, // TODO Adjust this with eventTime from last event
-                        true
+                        duration, // TODO Adjust this with eventTime from last event
                     )
+                } else {
+                    path!!.apply {
+                        lineTo(x, y)
+                    }
+                    touch = GestureDescription.StrokeDescription(
+                        path!!,
+                        0L,
+                        duration, // TODO Adjust this with eventTime from last event
+                    )
+                    //touch?.continueStroke(path!!.apply { lineTo(x, y) }, 0L, duration, false)
                 }
-                MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
-                    // For MotionEvent.ACTION_MOVE
-                    // Gesture will always be true
-                    // Send XY and when received by phone under control send lineTo
-                    touch?.continueStroke(Path().apply { lineTo(x, y) }, 0, 32L, false)
-                }
+                downX = 0f
+                downY = 0f
+                path = null
+            }
         }
-        val gestureBuilder = GestureDescription.Builder()
-        gestureBuilder.addStroke(touch!!)
-        dispatchGesture(
-            gestureBuilder.build(), object: GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) {
-                    Log.v("DEBUG", "onCompleted")
-                }
+        touch?.let {
+            val gestureBuilder = GestureDescription.Builder()
+            gestureBuilder.addStroke(it)
+            dispatchGesture(
+                gestureBuilder.build(), object : GestureResultCallback() {
+                    override fun onCompleted(gestureDescription: GestureDescription?) {
+                        super.onCompleted(gestureDescription)
+                        Log.v("DEBUG", "onCompleted")
+                    }
 
-                override fun onCancelled(gestureDescription: GestureDescription?) {
-                    super.onCancelled(gestureDescription)
-                    Log.v("DEBUG", "onCancelled")
-                }
-            },
-            null
-        )
+                    override fun onCancelled(gestureDescription: GestureDescription?) {
+                        super.onCancelled(gestureDescription)
+                        Log.v("DEBUG", "onCancelled")
+                    }
+                },
+                null
+            )
+        }
     }
 
     companion object {

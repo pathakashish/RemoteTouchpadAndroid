@@ -24,7 +24,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.slf4j.helpers.Util
 import org.webrtc.*
 import java.util.*
-import kotlin.collections.HashMap
 
 
 @ExperimentalCoroutinesApi
@@ -67,20 +66,22 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        this.getWindow().setFlags(
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN
+        )
 
         setContentView(R.layout.activity_main)
 
-//        val gestureDetector: GestureDetector = GestureDetector(applicationContext, this)
-//
-//        view_whiteboard.setOnTouchListener { _, event ->
-//            gestureDetector.onTouchEvent(event)
-//            true
-//        }
+        /*val gestureDetector = GestureDetector(applicationContext, this)
+        view_whiteboard.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            true
+     }*/
 
         view_whiteboard.setOnTouchListener { _, event ->
-            when(event.action) {
-                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+            /*when(event.action) {
+                MotionEvent.ACTION_DOWN -> {
                     // For MotionEvent.ACTION_DOWN
                     // Gesture will continue to true
                     // Send XY and when received by phone under control send moveTo
@@ -88,13 +89,16 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
                     // For MotionEvent.ACTION_MOVE
                     // Gesture will always be true
                     // Send XY and when received by phone under control send lineTo
-                    rtcClient.sendLiveEvents(meetingID, event!!)
+                    //rtcClient.sendLiveEvents(meetingID, event!!)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     //Gesture will continue to false
+                }
+                MotionEvent.ACTION_MOVE -> {
                     rtcClient.sendLiveEvents(meetingID, event!!)
                 }
-            }
+            }*/
+            rtcClient.sendLiveEvents(meetingID, event!!)
             true
         }
 
@@ -165,13 +169,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
         }
 
         remote_control_button.setOnClickListener {
-            /*rtcClient.eventData.observe(this, {
-                Log.v(TAG, "x : " + it.get("x") + ", Y: " + it.get("y"))
-                rtcAccessibilityService?.performClickEventOnNodeAtGivenCoordinates(
-                    x = it["x"] as Float,
-                    y = it["y"] as Float
-                )
-            })*/
+
             rtcClient.rtcClientListener = object : RTCClientListener {
                 @RequiresApi(Build.VERSION_CODES.O)
                 override fun onEventReceive(hashData: HashMap<*, *>, willContinue: Boolean) {
@@ -185,6 +183,71 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
 //                        y = yCoordinate
 //                    )
                     rtcAccessibilityService?.performEvent(hashData)
+                    /*val gestureDetector = GestureDetector(
+                        this@RTCActivity,
+                        object : GestureDetector.SimpleOnGestureListener() {
+                            override fun onDown(e: MotionEvent?): Boolean {
+                                Log.v(TAG, "OnDown")
+                                return false
+                            }
+
+                            override fun onShowPress(e: MotionEvent?) {
+                                Log.v(TAG, "onShowPress")
+                            }
+
+                            override fun onSingleTapUp(e: MotionEvent?): Boolean {
+                                Log.v(TAG, "onSingleTapUp")
+                                return true
+                            }
+
+                            override fun onScroll(
+                                e1: MotionEvent?,
+                                e2: MotionEvent?,
+                                distanceX: Float,
+                                distanceY: Float
+                            ): Boolean {
+                                Log.v(TAG, "onScroll")
+                                return true
+                            }
+
+                            override fun onLongPress(e: MotionEvent?) {
+                                Log.v(TAG, "onLongPress")
+                            }
+
+                            override fun onFling(
+                                e1: MotionEvent?,
+                                e2: MotionEvent?,
+                                velocityX: Float,
+                                velocityY: Float
+                            ): Boolean {
+                                Log.v(TAG, "onFling")
+                                return true
+                            }
+
+                            override fun onDoubleTap(e: MotionEvent?): Boolean {
+                                return super.onDoubleTap(e)
+                            }
+
+                        })
+                    try {
+                        val event = MotionEvent.obtain(
+                            hashData["downTime"] as Long,
+                            hashData["eventTime"] as Long,
+                            (hashData["action"] as Long).toInt(),
+                            (hashData["x"] as Double).toFloat(),
+                            (hashData["y"] as Double).toFloat(),
+                            (hashData["pressure"] as Double).toFloat(),
+                            (hashData["size"] as Double).toFloat(),
+                            (hashData["metaState"] as Long).toInt(),
+                            (hashData["xprecision"] as Double).toFloat(),
+                            (hashData["yprecision"] as Double).toFloat(),
+                            (hashData["deviceId"] as Long).toInt(),
+                            (hashData["edgeFlags"] as Long).toInt()
+                        )
+                        gestureDetector.onTouchEvent(event)
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }*/
                 }
             }
             if (!isMyAccessibilityServiceEnabled()) {

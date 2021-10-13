@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import android.view.GestureDetector
 import android.view.MotionEvent
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.MutableLiveData
@@ -358,9 +359,7 @@ class RTCClient(
 
     fun sendLiveEvents(meetingID: String, event: MotionEvent) {
 
-        val eventHash = hashMapOf(
-            "event" to event,
-        )
+        val eventHash = hashMapOf("event" to event)
 
         db.collection("calls").document(meetingID)
             .collection("liveEvents").document("newEvent")
@@ -373,8 +372,6 @@ class RTCClient(
             }
     }
 
-    val eventData: MutableLiveData<HashMap<*, *>> = MutableLiveData()
-
     fun listenToLiveEvents(context: Context, meetingID: String) {
         if (!this.isClient) return
 
@@ -385,8 +382,7 @@ class RTCClient(
             if (value != null && value.data?.get("event") != null) {
                 val eventHash: HashMap<*, *> =
                     value.data?.get("event") as HashMap<*, *>
-                val willContinue = value.data?.get("willContinue") as Boolean
-                eventData.postValue(eventHash)
+                val willContinue = false
                 rtcClientListener?.onEventReceive(eventHash, willContinue)
             }
         }
