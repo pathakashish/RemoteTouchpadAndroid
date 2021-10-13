@@ -80,7 +80,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
      }*/
 
         view_whiteboard.setOnTouchListener { _, event ->
-            /*when(event.action) {
+            when(event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     // For MotionEvent.ACTION_DOWN
                     // Gesture will continue to true
@@ -89,16 +89,17 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
                     // For MotionEvent.ACTION_MOVE
                     // Gesture will always be true
                     // Send XY and when received by phone under control send lineTo
-                    //rtcClient.sendLiveEvents(meetingID, event!!)
+                    rtcClient.sendLiveEvents(meetingID, event!!)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     //Gesture will continue to false
+                    rtcClient.sendLiveEvents(meetingID, event!!)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     rtcClient.sendLiveEvents(meetingID, event!!)
                 }
-            }*/
-            rtcClient.sendLiveEvents(meetingID, event!!)
+            }
+            //rtcClient.sendLiveEvents(meetingID, event!!)
             true
         }
 
@@ -483,16 +484,16 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
     }
 
     override fun onDown(e: MotionEvent?): Boolean {
-        rtcClient.sendLiveEvents(meetingID, e!!)
+        //rtcClient.sendLiveEvents(meetingID, e!!)
         return true
     }
 
     override fun onShowPress(e: MotionEvent?) {
-        rtcClient.sendLiveEvents(meetingID, e!!)
+        //rtcClient.sendLiveEvents(meetingID, e!!)
     }
 
     override fun onSingleTapUp(e: MotionEvent?): Boolean {
-        rtcClient.sendLiveEvents(meetingID, e!!)
+        //rtcClient.sendLiveEvents(meetingID, e!!)
         return true
     }
 
@@ -506,7 +507,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
     }
 
     override fun onLongPress(e: MotionEvent?) {
-        rtcClient.sendLiveEvents(meetingID, e!!)
+        //rtcClient.sendLiveEvents(meetingID, e!!)
     }
 
     override fun onFling(

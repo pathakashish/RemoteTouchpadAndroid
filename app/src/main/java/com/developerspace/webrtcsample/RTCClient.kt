@@ -358,9 +358,8 @@ class RTCClient(
     }
 
     fun sendLiveEvents(meetingID: String, event: MotionEvent) {
-
         val eventHash = hashMapOf("event" to event)
-
+        Log.v("SendEvent", "Event: "+ event.action)
         db.collection("calls").document(meetingID)
             .collection("liveEvents").document("newEvent")
             .set(eventHash)

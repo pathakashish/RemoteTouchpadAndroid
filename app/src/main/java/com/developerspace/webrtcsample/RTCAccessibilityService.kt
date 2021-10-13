@@ -30,7 +30,7 @@ class RTCAccessibilityService : AccessibilityService(),
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        when (event?.eventType) {
+        /*when (event?.eventType) {
 
             AccessibilityEvent.TYPE_VIEW_CLICKED -> {
                 Log.v(TAG, "TYPE_VIEW_CLICKED Text: " + event.source?.text)
@@ -117,7 +117,7 @@ class RTCAccessibilityService : AccessibilityService(),
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 Log.v(TAG, "TYPE_WINDOW_STATE_CHANGED Text: " + event.source?.text)
             }
-        }
+        }*/
     }
 
     override fun onInterrupt() {
@@ -184,6 +184,7 @@ class RTCAccessibilityService : AccessibilityService(),
     var isOnClick: Boolean = false
     val SCROLL_THRESHOLD: Int = 10
     var path: Path? = null
+    var inprogress = false
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun performEvent(hashData: HashMap<*, *>) {
@@ -191,21 +192,21 @@ class RTCAccessibilityService : AccessibilityService(),
         val y = (hashData["y"] as Double).toFloat()
         val downTime: Long = hashData["downTime"] as Long
         val eventTime: Long = hashData["eventTime"] as Long
-        var duration = eventTime - downTime
+        var duration = 16L
         if (duration == 0L) {
             duration = 1L
         }
+        Log.v(TAG, "Event ${hashData["action"]} Duration: $duration X: $x , Y: $y")
         when ((hashData["action"] as Long).toInt() and MotionEvent.ACTION_MASK) {
             MotionEvent.ACTION_DOWN -> {
                 downX = x
                 downX = y
                 isOnClick = true
-                /*touch = GestureDescription.StrokeDescription(
-                    Path().apply { moveTo(x, y) },
-                    0L,
-                    16L, // TODO Adjust this with eventTime from last event
-                    false
-                )*/
+                Log.v(TAG, "ACTION_DOWN Move To:-  x: $x, y: $y")
+                if (path == null) {
+                    path = Path()
+                    path?.moveTo(x, y)
+                }
             }
             MotionEvent.ACTION_MOVE -> {
                 // For MotionEvent.ACTION_MOVE
@@ -213,27 +214,19 @@ class RTCAccessibilityService : AccessibilityService(),
                 // Send XY and when received by phone under control send lineTo
                 if (isOnClick && (Math.abs(downX - x) > SCROLL_THRESHOLD || Math.abs(downY - y) > SCROLL_THRESHOLD)) {
                     isOnClick = false
-                    if (path == null) {
-                        path = Path()
-                        path!!.apply {
-                            moveTo(x, y)
-                        }
-                    }
-                    /*if (touch != null) {
-                        *//*touch = GestureDescription.StrokeDescription(
-                            path!!.apply { moveTo(x, y) },
-                            0L,
-                            duration, // TODO Adjust this with eventTime from last event
-                            true
-                        )*/
-
-                    else {
-                        path!!.apply {
-                            lineTo(x, y)
-                        }
-                        //touch?.continueStroke(path!!.apply { lineTo(x, y) }, 0L, duration, true)
-                   }
+                    path?.lineTo(x, y)
                 }
+                /*if(!isOnClick) {
+                    if (!inprogress) {
+                        path?.lineTo(x, y)
+                        touch = GestureDescription.StrokeDescription(
+                            path!!,
+                            0L,
+                            duration // TODO Adjust this with eventTime from last event
+                        )
+                        Log.v(TAG, "ACTION_MOVE Drag Line To:-  x: $x, y: $y")
+                    }
+                }*/
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 // For MotionEvent.ACTION_MOVE
@@ -242,39 +235,43 @@ class RTCAccessibilityService : AccessibilityService(),
                 //touch?.continueStroke(Path().apply { lineTo(x, y) }, 0, 12L, false)
                 if (isOnClick) {
                     touch = GestureDescription.StrokeDescription(
-                        Path().apply { moveTo(x, y) },
+                        path!!,
                         0L,
-                        duration, // TODO Adjust this with eventTime from last event
+                        duration // TODO Adjust this with eventTime from last event
                     )
+                    Log.v(TAG, "ACTION_UP Click:-  x: $x, y: $y")
                 } else {
-                    path!!.apply {
-                        lineTo(x, y)
-                    }
+                    path?.lineTo(x, y)
                     touch = GestureDescription.StrokeDescription(
                         path!!,
                         0L,
-                        duration, // TODO Adjust this with eventTime from last event
+                        duration // TODO Adjust this with eventTime from last event
                     )
-                    //touch?.continueStroke(path!!.apply { lineTo(x, y) }, 0L, duration, false)
+                    Log.v(TAG, "ACTION_UP Drag Line To:-  x: $x, y: $y")
+
                 }
                 downX = 0f
                 downY = 0f
+                path?.close()
                 path = null
             }
         }
         touch?.let {
             val gestureBuilder = GestureDescription.Builder()
             gestureBuilder.addStroke(it)
+            inprogress = true
             dispatchGesture(
                 gestureBuilder.build(), object : GestureResultCallback() {
                     override fun onCompleted(gestureDescription: GestureDescription?) {
                         super.onCompleted(gestureDescription)
-                        Log.v("DEBUG", "onCompleted")
+                        Log.v(TAG, "onCompleted")
+                        inprogress = false
                     }
 
                     override fun onCancelled(gestureDescription: GestureDescription?) {
                         super.onCancelled(gestureDescription)
-                        Log.v("DEBUG", "onCancelled")
+                        Log.v(TAG, "onCancelled")
+                        inprogress = false
                     }
                 },
                 null
