@@ -156,7 +156,8 @@ class RTCClient(
     }
 
 
-    private fun PeerConnection.call(sdpObserver: SdpObserver, meetingID: String) {
+
+    private fun PeerConnection.call(sdpObserver: SdpObserver, meetingID: String,screenShare: Boolean?=false) {
         val constraints = MediaConstraints().apply {
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
         }
