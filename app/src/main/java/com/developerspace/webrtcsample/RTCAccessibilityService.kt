@@ -165,7 +165,7 @@ class RTCAccessibilityService : AccessibilityService(),
         val downTime: Long = hashData["downTime"] as Long
         val eventTime: Long = hashData["eventTime"] as Long
         var duration: Long
-        duration = if(xEventTime == 0L && eventTime == xEventTime) {
+        duration = if(xEventTime == 0L || eventTime == xEventTime) {
             10L
         } else {
             abs(eventTime - xEventTime)
