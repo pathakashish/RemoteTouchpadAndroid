@@ -89,13 +89,16 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
                     // For MotionEvent.ACTION_MOVE
                     // Gesture will always be true
                     // Send XY and when received by phone under control send lineTo
+                    Log.v("SendEvent", "ACTION_DOWN Event: ${event.action} X: ${event.x}, Y: ${event.y}")
                     rtcClient.sendLiveEvents(meetingID, event!!)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     //Gesture will continue to false
+                    Log.v("SendEvent", "ACTION_UP Event: ${event.action} X: ${event.x}, Y: ${event.y}")
                     rtcClient.sendLiveEvents(meetingID, event!!)
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    Log.v("SendEvent", "ACTION_MOVE Event: ${event.action} X: ${event.x}, Y: ${event.y}")
                     rtcClient.sendLiveEvents(meetingID, event!!)
                 }
             }
@@ -177,78 +180,8 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
                     Log.v(TAG, "x : " + hashData.get("x") + ", Y: " + hashData.get("y"))
                     if (rtcAccessibilityService == null) rtcAccessibilityService =
                         RTCAccessibilityService.getSharedAccessibilityServiceInstance()
-                    val xCoordinate = (hashData["x"] as Double).toInt()
-                    val yCoordinate = (hashData["y"] as Double).toInt()
-//                    rtcAccessibilityService?.performClickEventOnNodeAtGivenCoordinates(
-//                        x = xCoordinate,
-//                        y = yCoordinate
-//                    )
+
                     rtcAccessibilityService?.performEvent(hashData)
-                    /*val gestureDetector = GestureDetector(
-                        this@RTCActivity,
-                        object : GestureDetector.SimpleOnGestureListener() {
-                            override fun onDown(e: MotionEvent?): Boolean {
-                                Log.v(TAG, "OnDown")
-                                return false
-                            }
-
-                            override fun onShowPress(e: MotionEvent?) {
-                                Log.v(TAG, "onShowPress")
-                            }
-
-                            override fun onSingleTapUp(e: MotionEvent?): Boolean {
-                                Log.v(TAG, "onSingleTapUp")
-                                return true
-                            }
-
-                            override fun onScroll(
-                                e1: MotionEvent?,
-                                e2: MotionEvent?,
-                                distanceX: Float,
-                                distanceY: Float
-                            ): Boolean {
-                                Log.v(TAG, "onScroll")
-                                return true
-                            }
-
-                            override fun onLongPress(e: MotionEvent?) {
-                                Log.v(TAG, "onLongPress")
-                            }
-
-                            override fun onFling(
-                                e1: MotionEvent?,
-                                e2: MotionEvent?,
-                                velocityX: Float,
-                                velocityY: Float
-                            ): Boolean {
-                                Log.v(TAG, "onFling")
-                                return true
-                            }
-
-                            override fun onDoubleTap(e: MotionEvent?): Boolean {
-                                return super.onDoubleTap(e)
-                            }
-
-                        })
-                    try {
-                        val event = MotionEvent.obtain(
-                            hashData["downTime"] as Long,
-                            hashData["eventTime"] as Long,
-                            (hashData["action"] as Long).toInt(),
-                            (hashData["x"] as Double).toFloat(),
-                            (hashData["y"] as Double).toFloat(),
-                            (hashData["pressure"] as Double).toFloat(),
-                            (hashData["size"] as Double).toFloat(),
-                            (hashData["metaState"] as Long).toInt(),
-                            (hashData["xprecision"] as Double).toFloat(),
-                            (hashData["yprecision"] as Double).toFloat(),
-                            (hashData["deviceId"] as Long).toInt(),
-                            (hashData["edgeFlags"] as Long).toInt()
-                        )
-                        gestureDetector.onTouchEvent(event)
-                    } catch (ex: Exception) {
-                        ex.printStackTrace()
-                    }*/
                 }
             }
             if (!isMyAccessibilityServiceEnabled()) {

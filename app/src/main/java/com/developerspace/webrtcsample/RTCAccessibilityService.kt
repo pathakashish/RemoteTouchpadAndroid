@@ -4,15 +4,14 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.graphics.Path
-import android.graphics.Rect
 import android.os.Build
 import android.util.Log
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
-import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.RequiresApi
 import java.util.*
+import kotlin.math.abs
 
 const val TAG = "RTCAccessibilityService"
 
@@ -30,7 +29,7 @@ class RTCAccessibilityService : AccessibilityService(),
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        /*when (event?.eventType) {
+        when (event?.eventType) {
 
             AccessibilityEvent.TYPE_VIEW_CLICKED -> {
                 Log.v(TAG, "TYPE_VIEW_CLICKED Text: " + event.source?.text)
@@ -117,7 +116,7 @@ class RTCAccessibilityService : AccessibilityService(),
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 Log.v(TAG, "TYPE_WINDOW_STATE_CHANGED Text: " + event.source?.text)
             }
-        }*/
+        }
     }
 
     override fun onInterrupt() {
@@ -151,40 +150,13 @@ class RTCAccessibilityService : AccessibilityService(),
         // Start an Intent to enable this service and touch exploration
     }
 
-    fun performClickEventOnNodeAtGivenCoordinates(
-        rootNode: AccessibilityNodeInfo? = rootInActiveWindow,
-        x: Int,
-        y: Int
-    ) {
-
-        rootNode?.let { accessibilityNodeInfo ->
-            for (i in 0 until accessibilityNodeInfo.childCount) {
-                accessibilityNodeInfo.getChild(i)?.let { nodeInfo ->
-                    if (nodeInfo.childCount > 0) {
-                        performClickEventOnNodeAtGivenCoordinates(nodeInfo, x, y)
-                    }
-                    if (nodeInfo.isClickable) {
-                        val rect = Rect()
-                        nodeInfo.getBoundsInScreen(rect)
-                        Log.v(
-                            "EVENT",
-                            "Node " + nodeInfo.text + " Rect = Left: " + rect.left + ", Top: " + rect.top + ", Right: " + rect.right + ", Bottom: " + rect.bottom
-                        )
-                        if (rect.contains(x, y)) {
-                            nodeInfo.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     var downX: Float = 0f
     var downY: Float = 0f
     var isOnClick: Boolean = false
     val SCROLL_THRESHOLD: Int = 10
     var path: Path? = null
     var inprogress = false
+    var xEventTime = 0L
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun performEvent(hashData: HashMap<*, *>) {
@@ -192,10 +164,13 @@ class RTCAccessibilityService : AccessibilityService(),
         val y = (hashData["y"] as Double).toFloat()
         val downTime: Long = hashData["downTime"] as Long
         val eventTime: Long = hashData["eventTime"] as Long
-        var duration = 16L
-        if (duration == 0L) {
-            duration = 1L
+        var duration: Long
+        duration = if(xEventTime == 0L && eventTime == xEventTime) {
+            10L
+        } else {
+            abs(eventTime - xEventTime)
         }
+        xEventTime = eventTime
         Log.v(TAG, "Event ${hashData["action"]} Duration: $duration X: $x , Y: $y")
         when ((hashData["action"] as Long).toInt() and MotionEvent.ACTION_MASK) {
             MotionEvent.ACTION_DOWN -> {
@@ -214,19 +189,15 @@ class RTCAccessibilityService : AccessibilityService(),
                 // Send XY and when received by phone under control send lineTo
                 if (isOnClick && (Math.abs(downX - x) > SCROLL_THRESHOLD || Math.abs(downY - y) > SCROLL_THRESHOLD)) {
                     isOnClick = false
-                    path?.lineTo(x, y)
                 }
-                /*if(!isOnClick) {
-                    if (!inprogress) {
-                        path?.lineTo(x, y)
-                        touch = GestureDescription.StrokeDescription(
-                            path!!,
-                            0L,
-                            duration // TODO Adjust this with eventTime from last event
-                        )
-                        Log.v(TAG, "ACTION_MOVE Drag Line To:-  x: $x, y: $y")
-                    }
-                }*/
+                if(!isOnClick) {
+                    path?.lineTo(x, y)
+                    touch = GestureDescription.StrokeDescription(
+                        path!!,
+                        0L,
+                        duration // TODO Adjust this with eventTime from last event
+                    )
+                }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 // For MotionEvent.ACTION_MOVE
@@ -234,26 +205,22 @@ class RTCAccessibilityService : AccessibilityService(),
                 // Send XY and when received by phone under control send lineTo
                 //touch?.continueStroke(Path().apply { lineTo(x, y) }, 0, 12L, false)
                 if (isOnClick) {
-                    touch = GestureDescription.StrokeDescription(
-                        path!!,
-                        0L,
-                        duration // TODO Adjust this with eventTime from last event
-                    )
+                    duration = 10L
                     Log.v(TAG, "ACTION_UP Click:-  x: $x, y: $y")
                 } else {
                     path?.lineTo(x, y)
-                    touch = GestureDescription.StrokeDescription(
-                        path!!,
-                        0L,
-                        duration // TODO Adjust this with eventTime from last event
-                    )
                     Log.v(TAG, "ACTION_UP Drag Line To:-  x: $x, y: $y")
-
                 }
+                touch = GestureDescription.StrokeDescription(
+                    path!!,
+                    0L,
+                    duration // TODO Adjust this with eventTime from last event
+                )
                 downX = 0f
                 downY = 0f
                 path?.close()
                 path = null
+                xEventTime = 0L
             }
         }
         touch?.let {
@@ -266,12 +233,14 @@ class RTCAccessibilityService : AccessibilityService(),
                         super.onCompleted(gestureDescription)
                         Log.v(TAG, "onCompleted")
                         inprogress = false
+                        touch = null
                     }
 
                     override fun onCancelled(gestureDescription: GestureDescription?) {
                         super.onCancelled(gestureDescription)
                         Log.v(TAG, "onCancelled")
                         inprogress = false
+                        touch = null
                     }
                 },
                 null
