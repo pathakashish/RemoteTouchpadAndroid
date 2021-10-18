@@ -1,15 +1,20 @@
 package com.developerspace.webrtcsample
 
 import android.Manifest
+import android.content.*
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.provider.Settings
+import android.text.TextUtils
 import android.util.Log
+import android.view.*
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
@@ -25,7 +30,7 @@ import android.view.View
 
 
 @ExperimentalCoroutinesApi
-class RTCActivity : AppCompatActivity() {
+class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
 
     companion object {
         private const val CAMERA_AUDIO_PERMISSION_REQUEST_CODE = 1
@@ -33,6 +38,7 @@ class RTCActivity : AppCompatActivity() {
         private const val AUDIO_PERMISSION = Manifest.permission.RECORD_AUDIO
     }
 
+    private var rtcAccessibilityService: RTCAccessibilityService? = null
     private lateinit var rtcClient: RTCClient
     private lateinit var signallingClient: SignalingClient
 
@@ -59,9 +65,50 @@ class RTCActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        this.getWindow().setFlags(
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN
+        )
+
         setContentView(R.layout.activity_main)
+
+        /*val gestureDetector = GestureDetector(applicationContext, this)
+        view_whiteboard.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            true
+     }*/
+
+        view_whiteboard.setOnTouchListener { _, event ->
+            when(event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    // For MotionEvent.ACTION_DOWN
+                    // Gesture will continue to true
+                    // Send XY and when received by phone under control send moveTo
+
+                    // For MotionEvent.ACTION_MOVE
+                    // Gesture will always be true
+                    // Send XY and when received by phone under control send lineTo
+                    Log.v("SendEvent", "ACTION_DOWN Event: ${event.action} X: ${event.x}, Y: ${event.y}")
+                    rtcClient.sendLiveEvents(meetingID, event!!)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    //Gesture will continue to false
+                    Log.v("SendEvent", "ACTION_UP Event: ${event.action} X: ${event.x}, Y: ${event.y}")
+                    rtcClient.sendLiveEvents(meetingID, event!!)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    Log.v("SendEvent", "ACTION_MOVE Event: ${event.action} X: ${event.x}, Y: ${event.y}")
+                    rtcClient.sendLiveEvents(meetingID, event!!)
+                }
+            }
+            //rtcClient.sendLiveEvents(meetingID, event!!)
+            true
+        }
+
 
         if (intent.hasExtra("meetingID"))
             meetingID = intent.getStringExtra("meetingID")!!
@@ -112,7 +159,7 @@ class RTCActivity : AppCompatActivity() {
         share_screen_button.setOnClickListener {
             if (isScreenShared) {
                 share_screen_button.setImageResource(R.drawable.ic_baseline_screen_share_24)
-
+                remote_control_button.visibility = View.GONE
                 isScreenShared = false
                 isVideoPaused = true
                 rtcClient.enableVideo(isVideoPaused)
@@ -124,6 +171,31 @@ class RTCActivity : AppCompatActivity() {
                 isScreenShared = true
 
                 startScreenCapture()
+                rtcClient.isClient = true
+                rtcClient.listenToLiveEvents(this, meetingID)
+                remote_control_button.visibility = View.VISIBLE
+            }
+        }
+
+        remote_control_button.setOnClickListener {
+
+            rtcClient.rtcClientListener = object : RTCClientListener {
+                @RequiresApi(Build.VERSION_CODES.O)
+                override fun onEventReceive(hashData: HashMap<*, *>, willContinue: Boolean) {
+                    Log.v(TAG, "x : " + hashData.get("x") + ", Y: " + hashData.get("y"))
+                    if (rtcAccessibilityService == null) rtcAccessibilityService =
+                        RTCAccessibilityService.getSharedAccessibilityServiceInstance()
+
+                    rtcAccessibilityService?.performEvent(hashData)
+                }
+            }
+            if (!isMyAccessibilityServiceEnabled()) {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                intent.addCategory(Intent.CATEGORY_DEFAULT)
+                startActivityForResult(intent, 90)
+            } else {
+                rtcAccessibilityService =
+                    RTCAccessibilityService.getSharedAccessibilityServiceInstance()
             }
         }
     }
@@ -145,6 +217,7 @@ class RTCActivity : AppCompatActivity() {
             .setTitle("Are you sure to close the screen?")
             .setMessage("Your ongoing call will be disconnected!")
             .setPositiveButton("Yes", object : DialogInterface.OnClickListener {
+                @RequiresApi(Build.VERSION_CODES.N)
                 override fun onClick(p0: DialogInterface?, p1: Int) {
                     endCall()
                 }
@@ -156,6 +229,7 @@ class RTCActivity : AppCompatActivity() {
             .show()
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     private fun endCall() {
         rtcClient.endCall(meetingID)
         remote_view.isGone = false
@@ -265,6 +339,7 @@ class RTCActivity : AppCompatActivity() {
             rtcClient.addIceCandidate(iceCandidate)
         }
 
+        @RequiresApi(Build.VERSION_CODES.N)
         override fun onCallEnded() {
             // if (!Constants.isCallEnded) {
             Constants.isCallEnded = true
@@ -330,10 +405,14 @@ class RTCActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 29)
-            return
-        rtcClient.startScreenSharing(data!!, local_view, createScreenCapturer(data))
-        rtcClient.call(sdpObserver, meetingID, isScreenShared)
+        if (requestCode == 29) {
+            rtcClient.startScreenSharing(data!!, local_view, createScreenCapturer(data))
+            rtcClient.call(sdpObserver, meetingID, isScreenShared)
+        } else if (requestCode == 90) {
+            rtcClient.call(sdpObserver, meetingID, isScreenShared)
+            rtcAccessibilityService =
+                RTCAccessibilityService.getSharedAccessibilityServiceInstance()
+        }
     }
 
     private fun stopScreenSharing() {
@@ -361,5 +440,75 @@ class RTCActivity : AppCompatActivity() {
         intent.action = BackgroundService.ACTION_STOP_FOREGROUND_SERVICE
         startService(intent)
         super.onDestroy()
+    }
+
+    override fun onDown(e: MotionEvent?): Boolean {
+        //rtcClient.sendLiveEvents(meetingID, e!!)
+        return true
+    }
+
+    override fun onShowPress(e: MotionEvent?) {
+        //rtcClient.sendLiveEvents(meetingID, e!!)
+    }
+
+    override fun onSingleTapUp(e: MotionEvent?): Boolean {
+        //rtcClient.sendLiveEvents(meetingID, e!!)
+        return true
+    }
+
+    override fun onScroll(
+        e1: MotionEvent?,
+        e2: MotionEvent?,
+        distanceX: Float,
+        distanceY: Float
+    ): Boolean {
+        return true
+    }
+
+    override fun onLongPress(e: MotionEvent?) {
+        //rtcClient.sendLiveEvents(meetingID, e!!)
+    }
+
+    override fun onFling(
+        e1: MotionEvent?,
+        e2: MotionEvent?,
+        velocityX: Float,
+        velocityY: Float
+    ): Boolean {
+        return true
+    }
+
+    private fun isMyAccessibilityServiceEnabled(): Boolean {
+        var accessibilityEnabled = 0
+        val service = packageName + "/" + RTCAccessibilityService::class.java.canonicalName
+        try {
+            accessibilityEnabled = Settings.Secure.getInt(
+                contentResolver,
+                Settings.Secure.ACCESSIBILITY_ENABLED
+            )
+        } catch (e: Settings.SettingNotFoundException) {
+            Log.e(
+                MainActivity::class.java.simpleName,
+                "Error finding setting, default accessibility to not found: ",
+                e
+            )
+        }
+        val mStringColonSplitter = TextUtils.SimpleStringSplitter(':')
+        if (accessibilityEnabled == 1) {
+            val settingValue: String = Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            mStringColonSplitter.setString(settingValue)
+            while (mStringColonSplitter.hasNext()) {
+                val accessibilityService = mStringColonSplitter.next()
+                if (accessibilityService.equals(service, ignoreCase = true)) {
+                    return true
+                }
+            }
+        } else {
+            Log.v(MainActivity::class.java.simpleName, "***ACCESSIBILITY IS DISABLED***")
+        }
+        return false
     }
 }

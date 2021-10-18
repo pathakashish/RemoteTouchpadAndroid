@@ -3,10 +3,10 @@
     package="com.developerspace.webrtcsample">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
         android:allowBackup="true"
@@ -15,7 +15,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.WebRTCSample">
-        <activity android:name="com.developerspace.webrtcsample.MainActivity"
+
+        <activity
+            android:name="com.developerspace.webrtcsample.MainActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.FullScreen"
             android:windowSoftInputMode="adjustResize">
@@ -25,16 +27,36 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="com.developerspace.webrtcsample.RTCActivity"
+
+        <activity
+            android:name="com.developerspace.webrtcsample.RTCActivity"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.FullScreen"/>
+            android:theme="@style/Theme.FullScreen" />
 
         <service
             android:name="com.developerspace.webrtcsample.BackgroundService"
             android:enabled="true"
             android:exported="true"
-            android:stopWithTask="true"
-            android:foregroundServiceType="mediaProjection" />
+            android:foregroundServiceType="mediaProjection"
+            android:stopWithTask="true" />
+
+        <service
+            android:name=".RTCAccessibilityService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+
+        </service>
+
     </application>
 
 </manifest>
