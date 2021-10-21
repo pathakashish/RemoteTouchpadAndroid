@@ -12,7 +12,9 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import io.ktor.util.*
 
+@InternalAPI
 class BackgroundService : Service() {
 
     private val TAG_FOREGROUND_SERVICE = "FOREGROUND_SERVICE"

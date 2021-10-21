@@ -1,6 +1,7 @@
 package com.developerspace.webrtcsample
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.*
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjection
@@ -11,6 +12,7 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
 import android.view.*
+import android.view.View
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
@@ -18,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
+import io.ktor.util.*
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.activity_start.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,10 +28,9 @@ import org.slf4j.helpers.Util
 import org.webrtc.*
 import java.util.*
 
-import android.content.*
-import android.view.View
+private const val TAG = "RTCActivity"
 
-
+@InternalAPI
 @ExperimentalCoroutinesApi
 class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
 
@@ -38,13 +40,12 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
         private const val AUDIO_PERMISSION = Manifest.permission.RECORD_AUDIO
     }
 
+    private val dataChannel: DataChannel? = null
     private var rtcAccessibilityService: RTCAccessibilityService? = null
     private lateinit var rtcClient: RTCClient
     private lateinit var signallingClient: SignalingClient
 
     private val audioManager by lazy { RTCAudioManager.create(this) }
-
-    val TAG = "RTCClient"
 
     private var meetingID: String = "test-call"
 
@@ -65,6 +66,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @RequiresApi(Build.VERSION_CODES.N)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,29 +85,7 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
      }*/
 
         view_whiteboard.setOnTouchListener { _, event ->
-            when(event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    // For MotionEvent.ACTION_DOWN
-                    // Gesture will continue to true
-                    // Send XY and when received by phone under control send moveTo
-
-                    // For MotionEvent.ACTION_MOVE
-                    // Gesture will always be true
-                    // Send XY and when received by phone under control send lineTo
-                    Log.v("SendEvent", "ACTION_DOWN Event: ${event.action} X: ${event.x}, Y: ${event.y}")
-                    rtcClient.sendLiveEvents(meetingID, event!!)
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    //Gesture will continue to false
-                    Log.v("SendEvent", "ACTION_UP Event: ${event.action} X: ${event.x}, Y: ${event.y}")
-                    rtcClient.sendLiveEvents(meetingID, event!!)
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    Log.v("SendEvent", "ACTION_MOVE Event: ${event.action} X: ${event.x}, Y: ${event.y}")
-                    rtcClient.sendLiveEvents(meetingID, event!!)
-                }
-            }
-            //rtcClient.sendLiveEvents(meetingID, event!!)
+            rtcClient.sendLiveEvents(meetingID, event!!)
             true
         }
 
@@ -172,23 +152,13 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
 
                 startScreenCapture()
                 rtcClient.isClient = true
-                rtcClient.listenToLiveEvents(this, meetingID)
+                rtcClient.listenToLiveEvents()
                 remote_control_button.visibility = View.VISIBLE
             }
         }
 
         remote_control_button.setOnClickListener {
 
-            rtcClient.rtcClientListener = object : RTCClientListener {
-                @RequiresApi(Build.VERSION_CODES.O)
-                override fun onEventReceive(hashData: HashMap<*, *>, willContinue: Boolean) {
-                    Log.v(TAG, "x : " + hashData.get("x") + ", Y: " + hashData.get("y"))
-                    if (rtcAccessibilityService == null) rtcAccessibilityService =
-                        RTCAccessibilityService.getSharedAccessibilityServiceInstance()
-
-                    rtcAccessibilityService?.performEvent(hashData)
-                }
-            }
             if (!isMyAccessibilityServiceEnabled()) {
                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                 intent.addCategory(Intent.CATEGORY_DEFAULT)
@@ -261,38 +231,39 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
                     rtcClient.addIceCandidate(p0)
                 }
 
-                override fun onAddStream(p0: MediaStream?) {
-                    super.onAddStream(p0)
-                    Log.e(TAG, "onAddStream: $p0")
-                    p0?.videoTracks?.get(0)?.addSink(remote_view)
+                override fun onAddStream(mediaStream: MediaStream?) {
+                    super.onAddStream(mediaStream)
+                    Log.d(TAG, "onAddStream: $mediaStream")
+                    mediaStream?.videoTracks?.get(0)?.addSink(remote_view)
                 }
 
-                override fun onIceConnectionChange(p0: PeerConnection.IceConnectionState?) {
-                    Log.e(TAG, "onIceConnectionChange: $p0")
+                override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
+                    Log.d(TAG, "onIceConnectionChange: $newState")
                 }
 
                 override fun onIceConnectionReceivingChange(p0: Boolean) {
-                    Log.e(TAG, "onIceConnectionReceivingChange: $p0")
+                    Log.d(TAG, "onIceConnectionReceivingChange: $p0")
                 }
 
                 override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
-                    Log.e(TAG, "onConnectionChange: $newState")
+                    Log.d(TAG, "onConnectionChange: $newState")
                 }
 
-                override fun onDataChannel(p0: DataChannel?) {
-                    Log.e(TAG, "onDataChannel: $p0")
+                override fun onDataChannel(dataChannel: DataChannel?) {
+                    Log.d(TAG, "onDataChannel: $dataChannel")
+                    rtcClient.setClientDataChannel(dataChannel)
                 }
 
                 override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
-                    Log.e(TAG, "onStandardizedIceConnectionChange: $newState")
+                    Log.d(TAG, "onStandardizedIceConnectionChange: $newState")
                 }
 
                 override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
-                    Log.e(TAG, "onAddTrack: $p0 \n $p1")
+                    Log.d(TAG, "onAddTrack: $p0 \n $p1")
                 }
 
                 override fun onTrack(transceiver: RtpTransceiver?) {
-                    Log.e(TAG, "onTrack: $transceiver")
+                    Log.d(TAG, "onTrack: $transceiver")
                 }
             }
         )
@@ -304,6 +275,17 @@ class RTCActivity : AppCompatActivity(), GestureDetector.OnGestureListener {
         signallingClient = SignalingClient(meetingID, createSignallingClientListener())
         if (!isJoin)
             rtcClient.call(sdpObserver, meetingID)
+
+        rtcClient.rtcClientListener = object : RTCClientListener {
+            @RequiresApi(Build.VERSION_CODES.O)
+            override fun onEventReceive(hashData: HashMap<*, *>) {
+                Log.v(TAG, "x : " + hashData.get("x") + ", Y: " + hashData.get("y"))
+                if (rtcAccessibilityService == null) rtcAccessibilityService =
+                    RTCAccessibilityService.getSharedAccessibilityServiceInstance()
+
+                rtcAccessibilityService?.performEvent(hashData)
+            }
+        }
     }
 
     private fun createSignallingClientListener() = object : SignalingClientListener {
