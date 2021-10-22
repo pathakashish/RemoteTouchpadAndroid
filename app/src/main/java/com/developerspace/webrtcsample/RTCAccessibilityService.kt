@@ -18,7 +18,6 @@ private const val TAG = "RTCAccessibilityService"
 class RTCAccessibilityService : AccessibilityService(),
     AccessibilityManager.TouchExplorationStateChangeListener {
 
-    private var touch: GestureDescription.StrokeDescription? = null
     private lateinit var accessibilityManager: AccessibilityManager
 
     override fun onServiceConnected() {
@@ -62,13 +61,10 @@ class RTCAccessibilityService : AccessibilityService(),
         // Start an Intent to enable this service and touch exploration
     }
 
-    var downX: Int = 0
-    var downY: Int = 0
-    var isOnClick: Boolean = false
-    val SCROLL_THRESHOLD: Int = 10
-    var path: Path? = null
-    var inprogress = false
-    var xEventTime = 0L
+    private var downX: Int = 0
+    private var downY: Int = 0
+    private var xEventTime = 0L
+    private var stroke: GestureDescription.StrokeDescription? = null
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun performEvent(hashData: HashMap<*, *>) {
@@ -76,88 +72,55 @@ class RTCAccessibilityService : AccessibilityService(),
         val x = hashData["x"] as Int
         val y = hashData["y"] as Int
         val eventTime: Long = (hashData["eventTime"] as Int).toLong()
-        var duration: Long
-        duration = if(xEventTime == 0L || eventTime == xEventTime) {
-            10L
-        } else {
-            abs(eventTime - xEventTime)
-        }
+        val duration =
+            if (xEventTime == 0L || eventTime == xEventTime) 1L else abs(eventTime - xEventTime)
+        Log.v(
+            TAG,
+            "Event ${hashData["action"]} Duration: $duration X: $x , Y: $y, downX: $downX, downY:: $downY eventTime: $eventTime"
+        )
         xEventTime = eventTime
-        Log.v(TAG, "Event ${hashData["action"]} Duration: $duration X: $x , Y: $y")
         when (hashData["action"] as Int and MotionEvent.ACTION_MASK) {
             MotionEvent.ACTION_DOWN -> {
-                downX = x
-                downX = y
-                isOnClick = true
-                Log.v(TAG, "ACTION_DOWN Move To:-  x: $x, y: $y")
-                if (path == null) {
-                    path = Path()
-                    path?.moveTo(x.toFloat(), y.toFloat())
-                }
+                val path = Path()
+                path.moveTo(x.toFloat(), y.toFloat())
+                stroke = GestureDescription.StrokeDescription(path, 0, duration, true)
             }
             MotionEvent.ACTION_MOVE -> {
-                // For MotionEvent.ACTION_MOVE
-                // Gesture will always be true
-                // Send XY and when received by phone under control send lineTo
-                if (isOnClick && (Math.abs(downX - x) > SCROLL_THRESHOLD || Math.abs(downY - y) > SCROLL_THRESHOLD)) {
-                    isOnClick = false
-                }
-                if(!isOnClick) {
-                    path?.lineTo(x.toFloat(), y.toFloat())
-                    touch = GestureDescription.StrokeDescription(
-                        path!!,
-                        0L,
-                        duration // TODO Adjust this with eventTime from last event
-                    )
-                }
+                val path = Path()
+                path.moveTo(downX.toFloat(), downY.toFloat())
+                path.lineTo(x.toFloat(), y.toFloat())
+                stroke = stroke?.continueStroke(path, 0, duration, true)
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                // For MotionEvent.ACTION_MOVE
-                // Gesture will always be true
-                // Send XY and when received by phone under control send lineTo
-                //touch?.continueStroke(Path().apply { lineTo(x, y) }, 0, 12L, false)
-                if (isOnClick) {
-                    duration = 10L
-                    Log.v(TAG, "ACTION_UP Click:-  x: $x, y: $y")
-                } else {
-                    path?.lineTo(x.toFloat(), y.toFloat())
-                    Log.v(TAG, "ACTION_UP Drag Line To:-  x: $x, y: $y")
-                }
-                touch = GestureDescription.StrokeDescription(
-                    path!!,
-                    0L,
-                    duration // TODO Adjust this with eventTime from last event
-                )
-                downX = 0
-                downY = 0
-                path?.close()
-                path = null
-                xEventTime = 0L
+                val path = Path()
+                path.moveTo(x.toFloat(), y.toFloat())
+                stroke = stroke?.continueStroke(path, 0, duration, false)
+                xEventTime = 0
             }
         }
-        touch?.let {
-            val gestureBuilder = GestureDescription.Builder()
-            gestureBuilder.addStroke(it)
-            inprogress = true
-            dispatchGesture(
-                gestureBuilder.build(), object : GestureResultCallback() {
-                    override fun onCompleted(gestureDescription: GestureDescription?) {
-                        super.onCompleted(gestureDescription)
-                        Log.v(TAG, "onCompleted")
-                        inprogress = false
-                        touch = null
-                    }
+        applyStroke(stroke!!)
+        downX = x
+        downY = y
+    }
 
-                    override fun onCancelled(gestureDescription: GestureDescription?) {
-                        super.onCancelled(gestureDescription)
-                        Log.v(TAG, "onCancelled")
-                        inprogress = false
-                        touch = null
-                    }
-                },
-                null
-            )
-        }
+    @RequiresApi(Build.VERSION_CODES.N)
+    private fun applyStroke(stroke: GestureDescription.StrokeDescription) {
+        val gestureBuilder = GestureDescription.Builder()
+        gestureBuilder.addStroke(stroke)
+        dispatchGesture(
+            gestureBuilder.build(), object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    super.onCompleted(gestureDescription)
+                    Log.v(TAG, "onCompleted")
+                }
+
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    super.onCancelled(gestureDescription)
+                    Log.v(TAG, "onCancelled")
+                }
+            },
+            null
+        )
     }
 
     companion object {
